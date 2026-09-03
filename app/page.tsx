@@ -5,6 +5,7 @@ import MemoryGame from "./memory-game";
 import GenericQuestStep from "./generic-quest-step";
 import FinalTerminal from "./final-terminal";
 import { QUEST_TASKS } from "./quest-config";
+import { loadQuestProgress, updateQuestProgress } from "./quest-storage";
 
 const modules = QUEST_TASKS;
 
@@ -18,7 +19,8 @@ export default function Home() {
   const [memoryRound, setMemoryRound] = useState(0);
   const [taskOneComplete, setTaskOneComplete] = useState(false);
   const [totalErrors, setTotalErrors] = useState(0);
-  const [fragments, setFragments] = useState<string[]>([]);
+  const [totalHints, setTotalHints] = useState(0);
+  const [currentStage, setCurrentStage] = useState(1);
   const currentDate = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "2-digit",
@@ -27,28 +29,24 @@ export default function Home() {
 
   useEffect(() => {
     const restore = window.setTimeout(() => {
-      const participant = localStorage.getItem("participant");
-      const savedProgress = localStorage.getItem("taskProgress");
-      if (participant) { setName(participant); setStarted(true); }
-      setTotalErrors(Number(localStorage.getItem("errors") ?? 0));
-      setFragments(JSON.parse(localStorage.getItem("fragments") ?? "[]") as string[]);
-      if (savedProgress) {
-        const progress = JSON.parse(savedProgress) as { memoryRound?: number; task1Complete?: boolean };
-        setMemoryRound(progress.memoryRound ?? 0);
-        const isComplete = Boolean(progress.task1Complete);
-        setTaskOneComplete(isComplete);
-        setActiveModule(isComplete ? 1 : 0);
-      }
+      const progress = loadQuestProgress();
+      if (progress.participant) { setName(progress.participant); setStarted(true); }
+      setTotalErrors(progress.errors);
+      setTotalHints(progress.hints);
+      setCurrentStage(progress.currentStage);
+      setMemoryRound(progress.memoryRound);
+      setTaskOneComplete(progress.task1Complete);
+      setActiveModule(progress.task1Complete ? 1 : 0);
     }, 0);
     return () => window.clearTimeout(restore);
   }, []);
 
   function saveMemoryProgress(round: number, complete = taskOneComplete) {
-    localStorage.setItem("taskProgress", JSON.stringify({ memoryRound: round, task1Complete: complete }));
+    updateQuestProgress({ memoryRound: round, task1Complete: complete });
   }
 
   function openTask(taskId: number) {
-    if (!started || (taskId > 1 && !taskOneComplete)) return;
+    if (!started || taskId > currentStage) return;
     setSelectedTask(taskId);
     setView(taskId === 1 ? "task1" : "taskN");
   }
@@ -56,7 +54,15 @@ export default function Home() {
   function registerError() {
     setTotalErrors((current) => {
       const next = current + 1;
-      localStorage.setItem("errors", String(next));
+      updateQuestProgress({ errors: next });
+      return next;
+    });
+  }
+
+  function registerHint() {
+    setTotalHints((current) => {
+      const next = current + 1;
+      updateQuestProgress({ hints: next });
       return next;
     });
   }
@@ -65,9 +71,8 @@ export default function Home() {
     setTaskOneComplete(true);
     setMemoryRound(5);
     saveMemoryProgress(5, true);
-    localStorage.setItem("fragments", JSON.stringify(["CO"]));
-    setFragments(["CO"]);
-    localStorage.setItem("currentStage", "2");
+    updateQuestProgress({ fragments: ["CO"], currentStage: 2, memoryRound: 5, task1Complete: true });
+    setCurrentStage(2);
     setActiveModule(1);
   }
 
@@ -79,9 +84,7 @@ export default function Home() {
       setError("Введите имя и фамилию, чтобы мы записали ваш результат.");
       return;
     }
-    localStorage.setItem("participant", participant);
-    localStorage.setItem("startedAt", Date.now().toString());
-    localStorage.setItem("currentStage", "1");
+    updateQuestProgress({ participant, startedAt: Date.now(), currentStage: 1, status: "active" });
     setName(participant);
     setError("");
     setStarted(true);
@@ -89,11 +92,11 @@ export default function Home() {
   }
 
   if (view === "task1") {
-    return <MemoryGame initialRound={memoryRound} totalErrors={totalErrors} onError={registerError} onProgress={(round) => { setMemoryRound(round); saveMemoryProgress(round); }} onComplete={completeMemory} onExit={() => setView("home")} />;
+    return <MemoryGame initialRound={memoryRound} totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onProgress={(round) => { setMemoryRound(round); saveMemoryProgress(round); }} onComplete={completeMemory} onNext={() => { setSelectedTask(2); setView("taskN"); }} onExit={() => setView("home")} />;
   }
 
   if (view === "taskN") return <GenericQuestStep taskId={selectedTask} errors={totalErrors} onExit={() => setView("home")} />;
-  if (view === "final") return <FinalTerminal errors={totalErrors} fragments={fragments} locked onExit={() => setView("home")} />;
+  if (view === "final") return <FinalTerminal errors={totalErrors} hints={totalHints} locked={currentStage < 7} onExit={() => setView("home")} />;
 
   return (
     <main className="landing-shell">
@@ -114,7 +117,7 @@ export default function Home() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Айтипелаг, на главную"><span className="brand-mark" aria-hidden="true">&gt;_</span><span>айтипелаг</span></a>
         {started && <nav className="quest-navigation" aria-label="Навигация по заданиям">{QUEST_TASKS.map((task) => {
-          const unlocked = task.id === 1 || (task.id === 2 && taskOneComplete);
+          const unlocked = task.id <= currentStage;
           return <button type="button" key={task.id} disabled={!unlocked} onClick={() => openTask(task.id)} title={unlocked ? task.title : "Сначала завершите предыдущее задание"}><span>0{task.id}</span><b>{task.code}</b>{!unlocked && <i>×</i>}</button>;
         })}</nav>}
         <div className="system-status"><span className="status-dot" /><span>system.online</span><b suppressHydrationWarning>{currentDate}</b></div>
@@ -147,7 +150,7 @@ export default function Home() {
             <p className="terminal-command"><span>$</span> ls -la /nodes <i className="terminal-cursor" /></p>
             <div className="node-list">
               {modules.map((module, index) => {
-                const currentIndex = taskOneComplete ? 1 : 0;
+                const currentIndex = Math.min(currentStage - 1, modules.length - 1);
                 const isDone = index < currentIndex;
                 const isCurrent = index === currentIndex;
                 const isLocked = index > currentIndex;
@@ -162,16 +165,16 @@ export default function Home() {
                   disabled={started && isLocked}
                 >
                   <span className="node-number">0{index + 1}</span>
-                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>◉ {module.time} · фрагмент: <em>{module.fragment}</em></small></span>
+                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>◉ {module.time} · фрагмент: <em>{isDone ? module.fragment : "???"}</em></small></span>
                   <span className="node-action">{isDone ? "DONE" : isCurrent ? "ACTIVE" : isLocked ? "LOCKED" : activeModule === index ? "OPEN" : "+"}</span>
                 </button>
               )})}
             </div>
-            <button className="final-node" type="button" disabled aria-label="Финальный терминал заблокирован">
+            <button className="final-node" type="button" disabled={currentStage < 7} onClick={() => setView("final")} aria-label={currentStage < 7 ? "Финальный терминал заблокирован" : "Открыть финальный терминал"}>
               <span className="node-number">★</span><span className="node-copy"><strong>[SERVER] <b>Финальный терминал</b></strong><small>Доступ после доставки кода</small></span><span className="locked">LOCKED</span>
             </button>
           </div>
-          <div className="map-footer"><p><span>&gt;</span> {activeModule === 6 ? "access denied: complete all nodes" : `active node: 0${taskOneComplete ? 2 : 1} / ${modules[taskOneComplete ? 1 : 0].code}`}</p><div className="signal" aria-hidden="true"><i /><i /><i /><i /><i /></div></div>
+          <div className="map-footer"><p><span>&gt;</span> {currentStage > 6 ? "all nodes complete / server ready" : `active node: 0${currentStage} / ${modules[currentStage - 1]?.code}`}</p><div className="signal" aria-hidden="true"><i /><i /><i /><i /><i /></div></div>
         </aside>
       </section>
 
