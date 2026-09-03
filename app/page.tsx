@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import MemoryGame from "./memory-game";
 import GenericQuestStep from "./generic-quest-step";
 import FinalTerminal from "./final-terminal";
@@ -115,7 +116,7 @@ export default function Home() {
       <div className="orbit orbit-one" aria-hidden="true" />
       <div className="orbit orbit-two" aria-hidden="true" />
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Айтипелаг, на главную"><span className="brand-mark" aria-hidden="true">&gt;_</span><span>айтипелаг</span></a>
+        <a className="brand" href="#top" aria-label="Айтипелаг, на главную"><span className="brand-mark" aria-hidden="true"><Image src="/aytipelag-logo.png" alt="" width={750} height={354} priority /></span><span>айтипелаг</span></a>
         {started && <nav className="quest-navigation" aria-label="Навигация по заданиям">{QUEST_TASKS.map((task) => {
           const unlocked = task.id <= currentStage;
           return <button type="button" key={task.id} disabled={!unlocked} onClick={() => openTask(task.id)} title={unlocked ? task.title : "Сначала завершите предыдущее задание"}><span>0{task.id}</span><b>{task.code}</b>{!unlocked && <i>×</i>}</button>;
