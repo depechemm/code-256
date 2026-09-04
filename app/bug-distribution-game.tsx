@@ -2,6 +2,7 @@
 
 import { CSSProperties, FormEvent, useState } from "react";
 import QuestStepShell from "./quest-step-shell";
+import RoboDuckFace from "./robo-duck-face";
 
 const developers = [
   { id: "Аня", color: "#ff8c78", hair: "#60273f", line: "Я? Нет. Я вообще красивый код пишу. Это Борис.", variant: 0 },
@@ -35,20 +36,6 @@ function Person({ color, hair, variant }: { color: string; hair: string; variant
     {variant === 1 && <><path d="M45 56q5-4 10 0m12 0q5-4 10 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M54 72q8 3 15-2" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
     {variant === 2 && <><path d="M44 55h11m13 0h11" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M55 72h13" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
     {variant === 3 && <><path d="M45 56h9m15-2 8 3" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M54 70q8 10 17 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
-  </svg>;
-}
-
-function RoboDuckFace() {
-  return <svg className="robo-duck-face" viewBox="20 0 80 66" role="img" aria-label="Робо-утка в шлеме">
-    <circle cx="57" cy="35" r="25" fill="#ffe477" stroke="#001524" strokeWidth="3" />
-    <path d="m79 39 16 6-16 8c-2-4-2-9 0-14Z" fill="#ff9a4a" stroke="#001524" strokeWidth="3" strokeLinejoin="round" />
-    <path d="M32 35C32 15 43 5 59 5c17 0 28 12 28 33l-8 8H39l-7-11Z" fill="#c8d4dc" stroke="#001524" strokeWidth="3" />
-    <path d="M38 30c2-13 9-19 21-19 13 0 21 8 22 22l-5 4H41Z" fill="#001524" />
-    <path d="M38 31h42v13c-11 5-28 5-42 0Z" fill="#061b28" stroke="#001524" strokeWidth="2" />
-    <path d="M43 35h32" stroke="#00a7e1" strokeWidth="6" strokeLinecap="round" />
-    <path d="M46 35v5m6-5v5m6-5v5m6-5v5m6-5v5" stroke="#d8f8ff" strokeWidth="2" />
-    <path d="M40 46h37l-5 10H44Z" fill="#9babb5" stroke="#001524" strokeWidth="2.5" />
-    <path d="M47 50h20" stroke="#00a7e1" strokeWidth="2" strokeDasharray="3 3" />
   </svg>;
 }
 

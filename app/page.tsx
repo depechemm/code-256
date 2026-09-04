@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import MemoryGame from "./memory-game";
 import BugDistributionGame from "./bug-distribution-game";
+import CipherGame from "./cipher-game";
+import AlgorithmGame from "./algorithm-game";
 import GenericQuestStep from "./generic-quest-step";
 import FinalTerminal from "./final-terminal";
 import { QUEST_TASKS } from "./quest-config";
@@ -100,6 +102,20 @@ export default function Home() {
     setActiveModule(2);
   }
 
+  function completeCipher() {
+    const progress = loadQuestProgress();
+    updateQuestProgress({ task3Complete: true, fragments: Array.from(new Set([...progress.fragments, "DE"])), currentStage: Math.max(progress.currentStage, 4) });
+    setCurrentStage((stage) => Math.max(stage, 4));
+    setActiveModule(3);
+  }
+
+  function completeAlgorithm() {
+    const progress = loadQuestProgress();
+    updateQuestProgress({ task4Complete: true, fragments: Array.from(new Set([...progress.fragments, "5"])), currentStage: Math.max(progress.currentStage, 5) });
+    setCurrentStage((stage) => Math.max(stage, 5));
+    setActiveModule(4);
+  }
+
   function startQuest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (started) return;
@@ -120,6 +136,8 @@ export default function Home() {
   }
 
   if (view === "taskN" && selectedTask === 2) return <BugDistributionGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeBugDistribution} onNext={() => { setSelectedTask(3); setView("taskN"); }} onExit={() => setView("home")} />;
+  if (view === "taskN" && selectedTask === 3) return <CipherGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeCipher} onNext={() => { setSelectedTask(4); setView("taskN"); }} onExit={() => setView("home")} />;
+  if (view === "taskN" && selectedTask === 4) return <AlgorithmGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeAlgorithm} onNext={() => { setSelectedTask(5); setView("taskN"); }} onExit={() => setView("home")} />;
   if (view === "taskN") return <GenericQuestStep taskId={selectedTask} errors={totalErrors} onExit={() => setView("home")} />;
   if (view === "final") return <FinalTerminal errors={totalErrors} hints={totalHints} locked={currentStage < 7} onExit={() => setView("home")} />;
 
