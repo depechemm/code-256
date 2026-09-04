@@ -6,6 +6,7 @@ export type QuestProgress = {
   currentStage: number;
   memoryRound: number;
   task1Complete: boolean;
+  task2Complete: boolean;
   errors: number;
   hints: number;
   fragments: string[];
@@ -19,6 +20,7 @@ const initialProgress: QuestProgress = {
   currentStage: 1,
   memoryRound: 0,
   task1Complete: false,
+  task2Complete: false,
   errors: 0,
   hints: 0,
   fragments: [],

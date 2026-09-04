@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import MemoryGame from "./memory-game";
+import BugDistributionGame from "./bug-distribution-game";
 import GenericQuestStep from "./generic-quest-step";
 import FinalTerminal from "./final-terminal";
 import { QUEST_TASKS } from "./quest-config";
@@ -22,6 +23,7 @@ export default function Home() {
   const [totalErrors, setTotalErrors] = useState(0);
   const [totalHints, setTotalHints] = useState(0);
   const [currentStage, setCurrentStage] = useState(1);
+  const [completedTaskNotice, setCompletedTaskNotice] = useState<number | null>(null);
   const currentDate = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
     month: "2-digit",
@@ -37,7 +39,7 @@ export default function Home() {
       setCurrentStage(progress.currentStage);
       setMemoryRound(progress.memoryRound);
       setTaskOneComplete(progress.task1Complete);
-      setActiveModule(progress.task1Complete ? 1 : 0);
+      setActiveModule(Math.min(Math.max(progress.currentStage - 1, 0), QUEST_TASKS.length - 1));
     }, 0);
     return () => window.clearTimeout(restore);
   }, []);
@@ -48,8 +50,21 @@ export default function Home() {
 
   function openTask(taskId: number) {
     if (!started || taskId > currentStage) return;
+    setActiveModule(taskId - 1);
+    if (taskId < currentStage) {
+      setCompletedTaskNotice(taskId);
+      return;
+    }
     setSelectedTask(taskId);
     setView(taskId === 1 ? "task1" : "taskN");
+  }
+
+  function continueQuest() {
+    if (currentStage > QUEST_TASKS.length) {
+      setView("final");
+      return;
+    }
+    openTask(currentStage);
   }
 
   function registerError() {
@@ -69,12 +84,20 @@ export default function Home() {
   }
 
   function completeMemory() {
+    const progress = loadQuestProgress();
     setTaskOneComplete(true);
     setMemoryRound(5);
     saveMemoryProgress(5, true);
-    updateQuestProgress({ fragments: ["CO"], currentStage: 2, memoryRound: 5, task1Complete: true });
-    setCurrentStage(2);
+    updateQuestProgress({ fragments: Array.from(new Set([...progress.fragments, "CO"])), currentStage: Math.max(progress.currentStage, 2), memoryRound: 5, task1Complete: true });
+    setCurrentStage((stage) => Math.max(stage, 2));
     setActiveModule(1);
+  }
+
+  function completeBugDistribution() {
+    const progress = loadQuestProgress();
+    updateQuestProgress({ task2Complete: true, fragments: Array.from(new Set([...progress.fragments, "2"])), currentStage: Math.max(progress.currentStage, 3) });
+    setCurrentStage((stage) => Math.max(stage, 3));
+    setActiveModule(2);
   }
 
   function startQuest(event: FormEvent<HTMLFormElement>) {
@@ -96,6 +119,7 @@ export default function Home() {
     return <MemoryGame initialRound={memoryRound} totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onProgress={(round) => { setMemoryRound(round); saveMemoryProgress(round); }} onComplete={completeMemory} onNext={() => { setSelectedTask(2); setView("taskN"); }} onExit={() => setView("home")} />;
   }
 
+  if (view === "taskN" && selectedTask === 2) return <BugDistributionGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeBugDistribution} onNext={() => { setSelectedTask(3); setView("taskN"); }} onExit={() => setView("home")} />;
   if (view === "taskN") return <GenericQuestStep taskId={selectedTask} errors={totalErrors} onExit={() => setView("home")} />;
   if (view === "final") return <FinalTerminal errors={totalErrors} hints={totalHints} locked={currentStage < 7} onExit={() => setView("home")} />;
 
@@ -137,10 +161,10 @@ export default function Home() {
             <div className={`input-row ${error ? "has-error" : ""}`}>
               <span aria-hidden="true">$</span>
               <input id="participant" name="participant" value={name} onChange={(event) => setName(event.target.value)} placeholder="Имя и фамилия" autoComplete="name" readOnly={started} aria-describedby={error ? "name-error" : undefined} aria-invalid={Boolean(error)} />
-              <button type={started ? "button" : "submit"} onClick={started ? () => openTask(1) : undefined}><span>{started ? "Перейти к заданию 01" : "Начать квест"}</span><span aria-hidden="true">&#8599;</span></button>
+              <button type={started ? "button" : "submit"} onClick={started ? continueQuest : undefined}><span>{started ? currentStage > QUEST_TASKS.length ? "Открыть финальный терминал" : `Перейти к заданию ${String(currentStage).padStart(2, "0")}` : "Начать квест"}</span><span aria-hidden="true">&#8599;</span></button>
             </div>
             {error && <p className="form-error" id="name-error">! {error}</p>}
-            {started && <p className="form-success">✓ Профиль найден. Можно продолжить с первого доступного задания.</p>}
+            {started && <p className="form-success">✓ Профиль найден. Можно продолжить с текущего доступного задания.</p>}
           </form>
           <p className="privacy-note"><span>[ i ]</span> Прогресс хранится только в вашем браузере.</p>
         </div>
@@ -187,6 +211,19 @@ export default function Home() {
           <li><span>03</span><p>Основное время — <strong>60 минут</strong>. Завершить прохождение можно до 75 минут.</p></li>
         </ol>
       </section>
+      {completedTaskNotice !== null && (() => {
+        const task = QUEST_TASKS[completedTaskNotice - 1];
+        return <div className="completed-notice-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCompletedTaskNotice(null); }}>
+          <section className="completed-notice" role="dialog" aria-modal="true" aria-labelledby="completed-notice-title">
+            <div className="completed-notice-head"><span>NODE_0{task.id} / ARCHIVED</span><b>COMPLETE</b></div>
+            <div className="completed-notice-icon" aria-hidden="true">✓</div><span>ЗАДАНИЕ УЖЕ ПРОЙДЕНО</span>
+            <h2 id="completed-notice-title">Поздравляем!</h2>
+            <p>Вы уже восстановили модуль «{task.title}». Повторный запуск не требуется — результат и фрагмент сохранены.</p>
+            <div className="completed-notice-fragment"><small>ФРАГМЕНТ КОДА</small><strong>{task.fragment}</strong></div>
+            <button type="button" onClick={() => setCompletedTaskNotice(null)}>ПОНЯТНО</button>
+          </section>
+        </div>;
+      })()}
     </main>
   );
 }
