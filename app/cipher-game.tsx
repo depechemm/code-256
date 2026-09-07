@@ -11,7 +11,6 @@ const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 export default function CipherGame({ totalErrors, totalHints, onError, onHint, onComplete, onNext, onExit }: Props) {
   const [answer, setAnswer] = useState("");
   const [status, setStatus] = useState<"idle" | "checking" | "error" | "success">("idle");
-  const [confirmHint, setConfirmHint] = useState(false);
   const [hintVisible, setHintVisible] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
@@ -53,16 +52,12 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
 
   function requestHint() {
     setDictionaryIntroOpen(false);
-    if (hintUsed) { setHintVisible(true); return; }
-    setConfirmHint(true);
-  }
-
-  function useHint() {
-    setConfirmHint(false);
-    setHintUsed(true);
+    if (!hintUsed) {
+      setHintUsed(true);
+      updateQuestProgress({ cipherHintUsed: true });
+      onHint();
+    }
     setHintVisible(true);
-    updateQuestProgress({ cipherHintUsed: true });
-    onHint();
   }
 
   return <QuestStepShell code="CIPHER" step={3} title="Зашифрованное сообщение" errors={totalErrors} hints={totalHints} onExit={onExit}>
@@ -72,8 +67,8 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
         <h1>Зашифрованное<br /><em>сообщение</em></h1>
         <p>Найден фрагмент инструкции, использованной для шифрования сообщения. Само исходное сообщение повреждено. Восстанови его, используя найденный алгоритм.</p>
         <div className="cipher-encrypted-card"><small>ЗАШИФРОВАННОЕ СООБЩЕНИЕ</small><strong>QSECN</strong><span>5 SYMBOLS / A–Z</span></div>
-        <div className="cipher-helper-actions"><button className="bugs-hint cipher-simple-hint" type="button" onClick={requestHint} disabled={status === "success"}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОДСКАЗКА"}</button><button className={`alphabet-button ${dictionaryIntroOpen ? "is-pointed" : ""}`} type="button" onClick={() => { setDictionaryIntroOpen(false); setDictionaryOpen(true); }}><span>AZ</span>СЛОВАРЬ БУКВ{dictionaryIntroOpen && <i className="dictionary-pointer" aria-hidden="true"><span>↑</span><small>НАЖИМАТЬ СЮДА</small></i>}</button></div>
-        <div className={`cipher-duck-message ${hintVisible || confirmHint || dictionaryIntroOpen ? "is-visible" : ""} ${dictionaryIntroOpen ? "is-dictionary-intro" : ""}`} aria-live="polite"><div className="duck-speech">{dictionaryIntroOpen ? <><span>Кря! Я оставила рядом словарь букв и их позиций. Открывай его сколько угодно — это не считается подсказкой и не повлияет на результат.</span><button type="button" onClick={() => setDictionaryIntroOpen(false)}>ХОРОШО</button></> : confirmHint ? <><span>Использовать подсказку? Она будет учтена в итоговом результате.</span><div className="duck-confirm-actions"><button type="button" onClick={() => setConfirmHint(false)}>НЕ СЕЙЧАС</button><button type="button" onClick={useHint}>ИСПОЛЬЗОВАТЬ</button></div></> : <><span>В записке указан алгоритм шифрования, а тебе нужно расшифровать сообщение. Чтобы отменить последовательность действий, начни с последнего выполненного действия и двигайся в обратном порядке.</span><button type="button" onClick={() => setHintVisible(false)}>СПАСИБО!</button></>}</div><RoboDuckFace /></div>
+        <div className="cipher-helper-actions"><button className="bugs-hint cipher-simple-hint" type="button" onClick={requestHint} disabled={status === "success"}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОДСКАЗКА"}</button><button className={`alphabet-button ${dictionaryIntroOpen ? "is-pointed" : ""}`} type="button" onClick={() => { setDictionaryIntroOpen(false); setDictionaryOpen(true); }}><span>AZ</span>СЛОВАРЬ {dictionaryIntroOpen && <i className="dictionary-pointer" aria-hidden="true"><span>↑</span><small>НАЖИМАТЬ СЮДА</small></i>}</button></div>
+        <div className={`cipher-duck-message ${hintVisible || dictionaryIntroOpen ? "is-visible" : ""} ${dictionaryIntroOpen ? "is-dictionary-intro" : ""}`} aria-live="polite"><div className="duck-speech">{dictionaryIntroOpen ? <><span>Кря! Я оставила рядом словарь букв и их позиций. Открывай его сколько угодно — это не считается подсказкой и не повлияет на результат.</span><button type="button" onClick={() => setDictionaryIntroOpen(false)}>ХОРОШО</button></> : <><span>В записке указан алгоритм шифрования, а тебе нужно расшифровать сообщение. Чтобы отменить последовательность действий, начни с последнего выполненного действия и двигайся в обратном порядке.</span><button type="button" onClick={() => setHintVisible(false)}>СПАСИБО!</button></>}</div><RoboDuckFace /></div>
       </div>
 
       <div className="found-note-panel">
@@ -91,7 +86,7 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
       </div>
     </section>
 
-    {dictionaryOpen && <div className="alphabet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDictionaryOpen(false); }}><section className="alphabet-dialog" role="dialog" aria-modal="true" aria-labelledby="alphabet-title"><div className="alphabet-head"><div><small>REFERENCE / FREE ACCESS</small><h2 id="alphabet-title">Словарь алфавита</h2></div><button type="button" onClick={() => setDictionaryOpen(false)} aria-label="Закрыть словарь">×</button></div><p>Позиции букв в английском алфавите.</p><div className="alphabet-grid">{alphabet.map((letter, index) => <div key={letter}><strong>{letter}</strong><span>{String(index + 1).padStart(2, "0")}</span></div>)}</div><div className="alphabet-foot"><span>&gt; A = 01 / Z = 26</span><button type="button" onClick={() => setDictionaryOpen(false)}>ВЕРНУТЬСЯ К ЗАДАНИЮ</button></div></section></div>}
+    {dictionaryOpen && <div className="alphabet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDictionaryOpen(false); }}><section className="alphabet-dialog" role="dialog" aria-modal="true" aria-labelledby="alphabet-title"><div className="alphabet-head"><div><small>REFERENCE / FREE ACCESS</small><h2 id="alphabet-title">Словарь</h2></div><button type="button" onClick={() => setDictionaryOpen(false)} aria-label="Закрыть словарь">×</button></div><p>Позиции букв в английском алфавите.</p><div className="alphabet-grid">{alphabet.map((letter, index) => <div key={letter}><strong>{letter}</strong><span>{String(index + 1).padStart(2, "0")}</span></div>)}</div><div className="alphabet-foot"><span>&gt; A = 01 / Z = 26</span><button type="button" onClick={() => setDictionaryOpen(false)}>ВЕРНУТЬСЯ К ЗАДАНИЮ</button></div></section></div>}
     {status === "success" && <div className="fragment-modal-backdrop" role="presentation"><section className="fragment-modal" role="dialog" aria-modal="true" aria-labelledby="fragment-three-title"><div className="fragment-modal-head"><span>NODE_03 / DECRYPTED</span><b>MESSAGE RECOVERED</b></div><div className="fragment-icon" aria-hidden="true">✓</div><span>ПОЛУЧЕН ФРАГМЕНТ КОДА</span><strong id="fragment-three-title">DE</strong><p>Сообщение DEBUG восстановлено. Новый фрагмент сохранён в терминале.</p><div className="fragment-modal-actions"><button type="button" onClick={onNext}>СЛЕДУЮЩИЙ УРОВЕНЬ <span>04 ↗</span></button><button type="button" onClick={onExit}>НА ГЛАВНУЮ</button></div></section></div>}
   </QuestStepShell>;
 }
