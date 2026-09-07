@@ -13,12 +13,9 @@ type Status = "ready" | "sending" | "failed" | "success";
 type Props = { totalErrors: number; totalHints: number; onError: () => void; onHint: () => void; onComplete: () => void; onNext: () => void; onExit: () => void };
 
 const TILES: Tile[] = [
-  { key: "0-0", col: 0, row: 0, kind: "corner", links: ["E", "S"] },
   { key: "1-0", col: 1, row: 0, kind: "tee", links: ["W", "E", "S"] },
-  { key: "2-0", col: 2, row: 0, kind: "corner", links: ["W", "S"] },
   { key: "3-0", col: 3, row: 0, kind: "corner", links: ["E", "S"] },
-  { key: "4-0", col: 4, row: 0, kind: "straight", links: ["W", "E"] },
-  { key: "5-0", col: 5, row: 0, kind: "corner", links: ["W", "S"] },
+  { key: "4-0", col: 4, row: 0, kind: "corner", links: ["W", "S"] },
   { key: "0-5", col: 0, row: 5, kind: "client", links: ["E"] },
   { key: "1-5", col: 1, row: 5, kind: "straight", links: ["W", "E"] },
   { key: "2-5", col: 2, row: 5, kind: "corner", links: ["W", "N"] },
@@ -27,7 +24,7 @@ const TILES: Tile[] = [
   { key: "0-4", col: 0, row: 4, kind: "corner", links: ["E", "N"] },
   { key: "0-3", col: 0, row: 3, kind: "straight", links: ["S", "N"] },
   { key: "0-2", col: 0, row: 2, kind: "corner", links: ["S", "E"] },
-  { key: "1-2", col: 1, row: 2, kind: "tee", links: ["W", "E", "N"] },
+  { key: "1-2", col: 1, row: 2, kind: "straight", links: ["W", "E"] },
   { key: "2-2", col: 2, row: 2, kind: "straight", links: ["W", "E"] },
   { key: "3-2", col: 3, row: 2, kind: "router", links: ["W", "S", "N"] },
   { key: "3-3", col: 3, row: 3, kind: "straight", links: ["N", "S"] },
@@ -37,14 +34,11 @@ const TILES: Tile[] = [
   { key: "5-3", col: 5, row: 3, kind: "straight", links: ["S", "N"] },
   { key: "5-2", col: 5, row: 2, kind: "corner", links: ["S", "W"] },
   { key: "4-2", col: 4, row: 2, kind: "corner", links: ["E", "N"] },
-  { key: "4-1", col: 4, row: 1, kind: "corner", links: ["S", "E"] },
+  { key: "4-1", col: 4, row: 1, kind: "tee", links: ["N", "S", "E"] },
   { key: "5-1", col: 5, row: 1, kind: "server", links: ["W"] },
   { key: "1-1", col: 1, row: 1, kind: "straight", links: ["N", "S"] },
   { key: "2-1", col: 2, row: 1, kind: "straight", links: ["N", "S"] },
   { key: "3-1", col: 3, row: 1, kind: "straight", links: ["N", "S"] },
-  { key: "3-5", col: 3, row: 5, kind: "corner", links: ["N", "E"] },
-  { key: "4-5", col: 4, row: 5, kind: "tee", links: ["W", "E", "N"] },
-  { key: "5-5", col: 5, row: 5, kind: "corner", links: ["W", "N"] },
 ];
 const TILE_MAP = new Map(TILES.map((tile) => [tile.key, tile]));
 const DIRS: Direction[] = ["N", "E", "S", "W"];
@@ -66,18 +60,28 @@ function connectedNeighbors(key: string, rotations: Record<string, number>) {
     return next && rotatedLinks(next, rotations).includes(OPPOSITE[direction]) ? [next.key] : [];
   });
 }
+function hasOpenExit(key: string, rotations: Record<string, number>) {
+  const tile = TILE_MAP.get(key); if (!tile) return false;
+  return rotatedLinks(tile, rotations).some((direction) => {
+    const [dx, dy] = VECTOR[direction]; const next = TILE_MAP.get(`${tile.col + dx}-${tile.row + dy}`);
+    return !next || !rotatedLinks(next, rotations).includes(OPPOSITE[direction]);
+  });
+}
 function findPacketPath(rotations: Record<string, number>) {
-  const queue = [{ key: CLIENT, routerSeen: false, path: [CLIENT] }]; const seen = new Set([`${CLIENT}|0`]); let longest = [CLIENT];
+  const queue = [{ key: CLIENT, routerSeen: false, path: [CLIENT] }]; const seen = new Set([`${CLIENT}|0`]); const component = new Set([CLIENT]); const paths = new Map<string, string[]>([[CLIENT, [CLIENT]]]); let longest = [CLIENT]; let successPath: string[] | null = null;
   while (queue.length) {
     const current = queue.shift()!; if (current.path.length > longest.length) longest = current.path;
     const routerSeen = current.routerSeen || current.key === ROUTER;
-    if (current.key === SERVER && routerSeen) return { success: true, path: current.path };
+    if (current.key === SERVER && routerSeen && !successPath) successPath = current.path;
     for (const next of connectedNeighbors(current.key, rotations)) {
+      component.add(next); if (!paths.has(next)) paths.set(next, [...current.path, next]);
       const nextSeen = routerSeen || next === ROUTER; const state = `${next}|${Number(nextSeen)}`;
       if (!seen.has(state)) { seen.add(state); queue.push({ key: next, routerSeen: nextSeen, path: [...current.path, next] }); }
     }
   }
-  return { success: false, path: longest };
+  const leakingCell = [...component].find((key) => hasOpenExit(key, rotations));
+  if (leakingCell) return { success: false, leak: true, path: paths.get(leakingCell) ?? longest };
+  return { success: Boolean(successPath), leak: false, path: successPath ?? longest };
 }
 
 export default function NetworkGame({ totalErrors, totalHints, onError, onHint, onComplete, onNext, onExit }: Props) {
@@ -94,7 +98,7 @@ export default function NetworkGame({ totalErrors, totalHints, onError, onHint, 
   async function sendPacket() {
     if (status === "sending" || status === "success" || !Object.keys(rotations).length) return; const id = ++runId.current; const result = findPacketPath(rotations); setStatus("sending"); setHintMode("closed"); setTraced([]); setMessage("Пакет отправлен. Проверяем маршрут…");
     for (const key of result.path) { setPacketCell(key); setTraced((current) => [...current, key]); if (!await pause(120, id)) return; }
-    if (!result.success) { setStatus("failed"); setMessage("Пакет потерян. Соединение с сервером не восстановлено."); onError(); await pause(900, id); if (runId.current === id) { setStatus("ready"); setPacketCell(null); } return; }
+    if (!result.success) { setStatus("failed"); setMessage(result.leak ? "Пакет потерян: в подключённой сети остался открытый выход." : "Пакет потерян. Соединение с сервером не восстановлено."); onError(); await pause(900, id); if (runId.current === id) setPacketCell(null); return; }
     setStatus("success"); setMessage("Соединение восстановлено. Пакет успешно доставлен на центральный сервер."); updateQuestProgress({ task5Complete: true, currentStage: 6, fragments: Array.from(new Set([...loadQuestProgress().fragments, "6"])) }); onComplete(); await pause(420, id); if (runId.current === id) setRewardVisible(true);
   }
   function showHint() { if (!hintUsed) { setHintUsed(true); onHint(); updateQuestProgress({ networkHintUsed: true }); } setHintMode("shown"); }
