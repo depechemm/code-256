@@ -35,7 +35,7 @@ function Person({ color, hair, variant }: { color: string; hair: string; variant
     {variant === 0 && <><rect x="42" y="52" width="15" height="11" rx="4" fill="none" stroke="#001524" strokeWidth="3" /><rect x="65" y="52" width="15" height="11" rx="4" fill="none" stroke="#001524" strokeWidth="3" /><path d="M57 57h8" stroke="#001524" strokeWidth="3" /><path d="M54 73q7 7 15 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
     {variant === 1 && <><path d="M45 56q5-4 10 0m12 0q5-4 10 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M54 72q8 3 15-2" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
     {variant === 2 && <><path d="M44 55h11m13 0h11" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M55 72h13" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
-    {variant === 3 && <><path d="M45 56h9m15-2 8 3" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M54 70q8 10 17 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
+    {variant === 3 && <><path d="M45 56h9m15 0h9" stroke="#001524" strokeWidth="3" strokeLinecap="round" /><path d="M54 70q8 10 17 0" fill="none" stroke="#001524" strokeWidth="3" strokeLinecap="round" /></>}
   </svg>;
 }
 
@@ -80,6 +80,7 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
           <li><b>04</b><span>Вика не работала ни с фронтендом, ни с мобильным приложением.</span></li>
         </ol>
         <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+        <div className={`bugs-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Сначала закрепи крайние значения: фронтенд — 10:00, база данных — 13:00. Затем исключай занятые роли.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
 
       <div className="bugs-console">
@@ -99,11 +100,6 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
         </form>
       </div>
     </section>
-
-    {hintOpen && <div className="hint-backdrop" role="presentation"><section className="bugs-hint-dialog" role="dialog" aria-modal="true" aria-labelledby="bugs-hint-title">
-      <RoboDuckFace />
-      <div><small>РОБО-УТКА / LOGIC ASSIST</small><h2 id="bugs-hint-title">Крякнем эту задачу.</h2><p>Сначала закрепи крайние значения: фронтенд — 10:00, база данных — 13:00. Затем исключай занятые роли.</p><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО, ПОНЯТНО</button></div>
-    </section></div>}
 
     {status === "complete" && <div className="fragment-modal-backdrop" role="presentation"><section className="fragment-modal" role="dialog" aria-modal="true" aria-labelledby="fragment-two-title">
       <div className="fragment-modal-head"><span>NODE_02 / RECOVERED</span><b>LOGIC VERIFIED</b></div><div className="fragment-icon" aria-hidden="true">✓</div><span>ПОЛУЧЕН ФРАГМЕНТ КОДА</span><strong id="fragment-two-title">2</strong><p>Модуль распределения багов восстановлен. Фрагмент сохранён в терминале.</p><div className="fragment-modal-actions"><button type="button" onClick={onNext}>СЛЕДУЮЩИЙ УРОВЕНЬ <span>03 ↗</span></button><button type="button" onClick={onExit}>НА ГЛАВНУЮ</button></div>

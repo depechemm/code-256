@@ -89,9 +89,11 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
           {branches.map((_, index) => <span key={index} className={iteration > index ? iteration === index + 1 && status === "running" ? "current" : "done" : ""}>{iteration > index && !(iteration === index + 1 && status === "running") ? "✓" : `0${index + 1}`}</span>)}
         </div>
         <div className="algorithm-status" aria-live="polite"><strong>{status === "idle" ? "ПРОГРАММА ЗАГРУЖЕНА" : status === "running" ? `ВЫПОЛНЯЕТСЯ ИТЕРАЦИЯ ${iteration}/4` : status === "error" ? "ЗНАЧЕНИЕ НЕВЕРНО" : status === "complete" ? "АЛГОРИТМ ВЫПОЛНЕН" : "ВЫЧИСЛЕНИЕ ЗАВЕРШЕНО"}</strong><span>{status === "running" ? "Следи за активной строкой псевдокода" : status === "error" ? "Проверь записанные значения после каждого повтора" : status === "ready" ? "Введи получившееся значение x" : "Начальное значение: x = 6"}</span></div>
-        {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ЗАПУСТИТЬ АЛГОРИТМ <span>↗</span></button>}
-        {status !== "idle" && status !== "running" && <button className="algorithm-replay" type="button" onClick={() => void runAlgorithm()} disabled={status === "complete"}>ПОВТОРИТЬ ТРАССИРОВКУ</button>}
-        <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+        <div className="algorithm-controls">
+          {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ЗАПУСТИТЬ АЛГОРИТМ <span>↗</span></button>}
+          {status !== "idle" && status !== "running" && <button className="algorithm-replay" type="button" onClick={() => void runAlgorithm()} disabled={status === "complete"}>ПОВТОРИТЬ ТРАССИРОВКУ</button>}
+          <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+        </div>
         <div className={`algorithm-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Кря! Заведи четыре строчки в черновике — по одной на каждый круг. Иначе икс убежит, он такой.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
 
