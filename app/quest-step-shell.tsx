@@ -8,13 +8,14 @@ type QuestStepShellProps = {
   title: string;
   errors: number;
   hints?: number;
+  shellClassName?: string;
   onExit: () => void;
   children: ReactNode;
 };
 
-export default function QuestStepShell({ code, step, title, errors, hints = 0, onExit, children }: QuestStepShellProps) {
+export default function QuestStepShell({ code, step, title, errors, hints = 0, shellClassName = "", onExit, children }: QuestStepShellProps) {
   return (
-    <main className="game-shell">
+    <main className={`game-shell ${shellClassName}`}>
       <div className="game-grid-bg" aria-hidden="true" />
       <header className="game-header">
         <button className="back-button" onClick={onExit} type="button">ГЛАВНАЯ</button>

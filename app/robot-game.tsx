@@ -32,6 +32,8 @@ const palette: Command[] = ["while", "if_front", "else_if_right", "else_if_left"
 const solutions: Command[][] = [
   ["while", "if_front", "forward", "else_if_right", "right", "else_if_left", "left", "end", "end"],
   ["while", "if_front", "forward", "else_if_right", "right", "else", "left", "end", "end"],
+  ["while", "if_front", "forward", "else_if_left", "left", "else_if_right", "right", "end", "end"],
+  ["while", "if_front", "forward", "else_if_left", "left", "else", "right", "end", "end"],
 ];
 const keyOf = (p: Position) => `${p.col}-${p.row}`;
 const turn = (f: Direction, side: "left" | "right") => DIRECTIONS[(DIRECTIONS.indexOf(f) + (side === "left" ? 3 : 1)) % 4];
@@ -39,14 +41,36 @@ const ahead = (p: Position, f: Direction) => ({ col: p.col + vectors[f].col, row
 const isFree = (p: Position) => p.col >= 0 && p.col < 6 && p.row >= 0 && p.row < 6 && FREE.has(keyOf(p));
 const cellName = (p: Position) => `${String.fromCharCode(65 + p.col)}${p.row + 1}`;
 function validateProgram(commands: Command[]) {
-  const structure: Array<Command | "action" | "last_branch"> = ["while", "if_front", "action", "else_if_right", "action", "last_branch", "action", "end", "end"];
-  if (commands.length !== structure.length) return { error: `Нужно собрать 9 блоков. Сейчас: ${commands.length}.`, index: Math.min(commands.length, 8) };
-  for (let index = 0; index < structure.length; index += 1) {
-    const expected = structure[index]; const valid = expected === "action" ? ["forward", "left", "right"].includes(commands[index]) : expected === "last_branch" ? ["else_if_left", "else"].includes(commands[index]) : commands[index] === expected;
-    if (!valid) return { error: `Блок ${index + 1} стоит не на своём месте. Проверь вложенность цикла и условий.`, index };
+  if (commands[0] !== "while") return { error: "Первым должен стоять цикл «Повторять до сервера».", index: 0 };
+  let index = 1; let conditionOpen = false; let loopClosed = false;
+  while (index < commands.length) {
+    const command = commands[index];
+    if (isAction(command)) { index += 1; continue; }
+    if (command === "if_front") {
+      if (conditionOpen) return { error: "Перед новым «Если» закрой предыдущую цепочку условий.", index };
+      if (!isAction(commands[index + 1])) return { error: "После условия должна стоять команда действия.", index: Math.min(index + 1, commands.length - 1) };
+      conditionOpen = true; index += 2; continue;
+    }
+    if (isSideCondition(command) || command === "else") {
+      if (!conditionOpen) return { error: `Блок «${commandInfo[command].label}» можно использовать только после «Если».`, index };
+      if (!isAction(commands[index + 1])) return { error: "После условия должна стоять команда действия.", index: Math.min(index + 1, commands.length - 1) };
+      index += 2; continue;
+    }
+    if (command === "end") {
+      if (conditionOpen) { conditionOpen = false; index += 1; continue; }
+      loopClosed = true;
+      if (index !== commands.length - 1) return { error: "После закрытия цикла не должно быть других блоков.", index: index + 1 };
+      break;
+    }
+    return { error: "Этот блок нельзя выполнить в текущем месте программы.", index };
   }
-  return { actions: { first: commands[2] as Action, second: commands[4] as Action, third: commands[6] as Action }, lastBranch: commands[5] as "else_if_left" | "else" };
+  if (conditionOpen) return { error: "Добавь «КОНЕЦ», чтобы закрыть цепочку условий.", index: Math.max(0, commands.length - 1) };
+  if (!loopClosed) return { error: "Добавь «КОНЕЦ», чтобы закрыть цикл.", index: Math.max(0, commands.length - 1) };
+  return { valid: true };
 }
+const isAction = (command?: Command): command is Action => command === "forward" || command === "left" || command === "right";
+const isSideCondition = (command?: Command): command is "else_if_left" | "else_if_right" => command === "else_if_left" || command === "else_if_right";
+const sideIsFree = (command: "else_if_left" | "else_if_right", position: Position, facing: Direction) => isFree(ahead(position, turn(facing, command === "else_if_left" ? "left" : "right")));
 
 export default function RobotGame({ totalErrors, totalHints, onError, onHint, onComplete, onFinal, onExit }: Props) {
   const [commands, setCommands] = useState<Command[]>([]); const [robot, setRobot] = useState<Position>(START); const [direction, setDirection] = useState<Direction>("N");
@@ -62,7 +86,7 @@ export default function RobotGame({ totalErrors, totalHints, onError, onHint, on
   const pause = (ms: number, id: number) => new Promise<boolean>((resolve) => window.setTimeout(() => resolve(runId.current === id), ms));
   function save(next: Command[]) { setCommands(next); updateQuestProgress({ robotProgram: next }); }
   function resetRobot() { setRobot(START); setDirection("N"); setVisited([keyOf(START)]); setActiveIndex(null); setFailedIndex(null); }
-  function prepareEdit() { if (status === "failed") { setStatus("idle"); resetRobot(); setMessage("Программа изменена. Запусти её ещё раз."); } }
+  function prepareEdit() { if (status === "failed") { setStatus("idle"); resetRobot(); setMessage("Программа изменена. Запусти её ещё раз."); } else { setActiveIndex(null); setFailedIndex(null); } }
   function addCommand(command: Command) { if (status === "running" || status === "success" || commands.length >= 9) return; prepareEdit(); scrollTarget.current = commands.length; save([...commands, command]); }
   function removeCommand(index: number) { prepareEdit(); save(commands.filter((_, position) => position !== index)); }
   function moveCommand(index: number, shift: -1 | 1) { const target = index + shift; if (target < 0 || target >= commands.length) return; prepareEdit(); const next = [...commands]; [next[index], next[target]] = [next[target], next[index]]; scrollTarget.current = target; save(next); }
@@ -77,47 +101,79 @@ export default function RobotGame({ totalErrors, totalHints, onError, onHint, on
     if (!isFree(next)) { await fail(id, sourceIndex, `Блок ${sourceIndex + 1} «ВПЕРЁД» ведёт из ${cellName(position)} в препятствие. Проверь выбранную ветку.`, countError); return false; }
     setRobot(next); setVisited((current) => current.includes(keyOf(next)) ? current : [...current, keyOf(next)]); if (!await pause(300, id)) return null; return { position: next, facing };
   }
-  async function runProgram(isPreview = false) {
-    if (!commands.length || status === "running" || status === "success") return; const id = ++runId.current; const parsed = validateProgram(commands); let position = START; let facing: Direction = "N";
-    resetRobot(); setHintOpen(false); setStatus("running"); setMessage(isPreview ? "Предпросмотр: утка тестирует программу. Ошибки не учитываются." : "Утка проверяет условия и выполняет подходящую ветку.");
-    if (!parsed.actions) { await pause(250, id); await fail(id, parsed.index ?? 0, parsed.error ?? "Структура программы не распознана.", !isPreview); return; }
-    let actionsDone = 0;
+  async function stopPreview(id: number, index: number, text: string) { if (runId.current !== id) return; setStatus("failed"); setActiveIndex(Math.min(index, commands.length - 1)); setFailedIndex(index < commands.length ? index : null); setMessage(text); }
+  async function executeProgram(countError: boolean) {
+    if (!commands.length || status === "running" || status === "success") return;
+    const id = ++runId.current; const stop = (index: number, text: string) => countError ? fail(id, index, text) : stopPreview(id, index, text);
+    resetRobot(); setHintOpen(false); setStatus("running"); setMessage(countError ? "Утка выполняет программу буквально и проверяет каждый блок." : "Проверка: утка выполняет уже собранную часть программы. Ошибки не учитываются.");
+    setActiveIndex(0); if (!await pause(160, id)) return;
+    if (commands[0] !== "while") { await stop(0, "Программа не может начаться: первым должен стоять цикл «Повторять до сервера»."); return; }
+    let position = START; let facing: Direction = "N"; let actionsDone = 0; let stalledCycles = 0;
     while (keyOf(position) !== keyOf(SERVER) && actionsDone < 30) {
-      setActiveIndex(0); if (!await pause(130, id)) return; setActiveIndex(1); if (!await pause(150, id)) return;
-      let action: Action; let sourceIndex: number;
-      if (isFree(ahead(position, facing))) { action = parsed.actions.first; sourceIndex = 2; }
-      else {
-        setActiveIndex(3); if (!await pause(150, id)) return;
-        if (isFree(ahead(position, turn(facing, "right")))) { action = parsed.actions.second; sourceIndex = 4; }
-        else {
-          setActiveIndex(5); if (!await pause(150, id)) return;
-          if (parsed.lastBranch === "else") { action = parsed.actions.third; sourceIndex = 6; }
-          else if (isFree(ahead(position, turn(facing, "left")))) { action = parsed.actions.third; sourceIndex = 6; }
-          else { await fail(id, 5, `В клетке ${cellName(position)} ни одно из трёх условий не подошло.`, !isPreview); return; }
+      if (stalledCycles >= 10) { await stop(0, "Цикл повторился 10 раз, но утка не сдвинулась к серверу."); return; }
+      const positionBeforeCycle = keyOf(position);
+      setActiveIndex(0); if (!await pause(140, id)) return;
+      let index = 1; let conditionOpen = false; let branchTaken = false; let loopClosed = false;
+      while (index < commands.length) {
+        const command = commands[index];
+        if (isAction(command)) {
+          const result = await executeAction(command, position, facing, id, index, countError);
+          if (result === null || result === false) return; position = result.position; facing = result.facing; actionsDone += 1; index += 1; continue;
         }
+        if (command === "if_front") {
+          if (conditionOpen) { await stop(index, "Перед новым «Если» закрой предыдущую цепочку условий блоком «КОНЕЦ»."); return; }
+          setActiveIndex(index); if (!await pause(180, id)) return; conditionOpen = true; branchTaken = isFree(ahead(position, facing));
+          const branchAction = commands[index + 1];
+          if (!isAction(branchAction)) { await stop(index + 1, "После условия нужна команда действия."); return; }
+          if (branchTaken) { const result = await executeAction(branchAction, position, facing, id, index + 1, countError); if (result === null || result === false) return; position = result.position; facing = result.facing; actionsDone += 1; }
+          index += 2; continue;
+        }
+        if (isSideCondition(command) || command === "else") {
+          if (!conditionOpen) { await stop(index, `Блок «${commandInfo[command].label}» нельзя использовать без предыдущего «Если».`); return; }
+          setActiveIndex(index); if (!await pause(180, id)) return;
+          const branchAction = commands[index + 1];
+          if (!isAction(branchAction)) { await stop(index + 1, "После условия нужна команда действия."); return; }
+          const matches = command === "else" || sideIsFree(command, position, facing);
+          if (!branchTaken && matches) { branchTaken = true; const result = await executeAction(branchAction, position, facing, id, index + 1, countError); if (result === null || result === false) return; position = result.position; facing = result.facing; actionsDone += 1; }
+          index += 2; continue;
+        }
+        if (command === "end") {
+          setActiveIndex(index); if (!await pause(140, id)) return;
+          if (conditionOpen) { conditionOpen = false; branchTaken = false; index += 1; continue; }
+          loopClosed = true;
+          if (index !== commands.length - 1) { await stop(index + 1, "После закрытия цикла остались лишние блоки."); return; }
+          break;
+        }
+        await stop(index, "Этот блок нельзя выполнить в текущем месте программы."); return;
       }
-      actionsDone += 1; const result = await executeAction(action, position, facing, id, sourceIndex, !isPreview);
-      if (result === null || result === false) return; position = result.position; facing = result.facing;
+      if (conditionOpen) { await stop(Math.max(0, commands.length - 1), "Цепочка условий не закрыта. Добавь блок «КОНЕЦ»."); return; }
+      if (!loopClosed) { await stop(Math.max(0, commands.length - 1), "Цикл не закрыт. Добавь блок «КОНЕЦ»."); return; }
+      stalledCycles = keyOf(position) === positionBeforeCycle ? stalledCycles + 1 : 0;
     }
-    if (keyOf(position) !== keyOf(SERVER)) { await fail(id, 0, "Цикл выполнил 30 действий, но утка не дошла до сервера. Проверь команды внутри условий.", !isPreview); return; }
-    if (isPreview) { setActiveIndex(null); setStatus("idle"); setMessage("Предпросмотр завершён: утка добралась до сервера. Теперь запусти программу."); return; }
-    setActiveIndex(null); setStatus("success"); setMessage("Алгоритм выполнен. Код доставлен на сервер."); updateQuestProgress({ task6Complete: true, currentStage: 7, robotProgram: commands }); onComplete(); await pause(650, id); if (runId.current === id) setFinalUnlocked(true);
+    if (keyOf(position) !== keyOf(SERVER)) { await stop(0, "Программа зациклилась, и утка не дошла до сервера. Проверь команды движения и поворота."); return; }
+    const validation = validateProgram(commands);
+    if (!validation.valid) { await stop(validation.index ?? 0, `Утка дошла до сервера, но программа не завершена: ${validation.error}`); return; }
+    setActiveIndex(null); setFailedIndex(null);
+    if (!countError) { setStatus("idle"); setMessage("Проверка завершена: утка добралась до сервера. Программа готова к запуску."); return; }
+    setStatus("success"); setMessage("Алгоритм выполнен. Код доставлен на сервер."); updateQuestProgress({ task6Complete: true, currentStage: 7, robotProgram: commands }); onComplete(); await pause(650, id); if (runId.current === id) setFinalUnlocked(true);
   }
+  const previewProgram = () => executeProgram(false);
+  const runProgram = () => executeProgram(true);
   function resetProgram() { ++runId.current; save([]); setStatus("idle"); setMessage("Программа очищена. Собери новый маршрут."); resetRobot(); }
   function showHint() { if (!hintUsed) { setHintUsed(true); onHint(); updateQuestProgress({ robotHintUsed: true }); } setHintOpen(true); }
-  const nextHint = (() => { const variants = solutions.map((solution) => { let index = 0; while (index < commands.length && commands[index] === solution[index]) index += 1; return { solution, index }; }); const best = variants.sort((a, b) => b.index - a.index)[0]; if (best.index >= best.solution.length) return "Маршрут собран верно. Теперь запускай программу!"; if (best.index === 5) return "Здесь есть выбор: проверь свободный путь слева или используй блок «В остальных случаях»."; return `После верной части следующая команда — «${commandInfo[best.solution[best.index]].label}».`; })();
+  const nextHint = (() => { const variants = solutions.map((solution) => { let index = 0; while (index < commands.length && commands[index] === solution[index]) index += 1; return { solution, index }; }); const best = variants.sort((a, b) => b.index - a.index)[0]; if (best.index >= best.solution.length) return "Маршрут собран верно. Теперь запускай программу!"; if (best.index === 3) return "После проверки пути впереди можно сначала проверить любую сторону: правую или левую."; if (best.index === 5) return `Теперь проверь путь ${commands[3] === "else_if_left" ? "справа" : "слева"} или используй блок «В остальных случаях».`; return `После верной части следующая команда — «${commandInfo[best.solution[best.index]].label}».`; })();
   const locked = status === "running" || status === "success";
 
-  return <QuestStepShell code="ROBOT" step={6} title="Доставь код на сервер" errors={totalErrors} hints={totalHints} onExit={onExit}><section className={`robot-layout robot-program-layout robot-${status}`}>
+  return <QuestStepShell code="ROBOT" step={6} title="Доставь код на сервер" errors={totalErrors} hints={totalHints} shellClassName="robot-game-shell" onExit={onExit}><section className={`robot-layout robot-program-layout robot-${status}`}>
     <div className="robot-board-panel"><div className="robot-panel-head"><span>GRID_WORLD / 6×6</span><b>{status === "running" ? "EXECUTING" : status === "success" ? "ACCESS GRANTED" : status === "failed" ? "PROGRAM STOPPED" : "ROUTE HIDDEN"}</b></div><div className="column-coordinates">{"ABCDEF".split("").map((c) => <span key={c}>{c}</span>)}</div>
       <div className="robot-board">{Array.from({ length: 36 }, (_, index) => { const col = index % 6; const row = Math.floor(index / 6); const key = `${col}-${row}`; const wall = !FREE.has(key); return <div key={key} className={`robot-cell ${wall ? "is-obstacle maze-bug" : ""} ${key === keyOf(SERVER) ? "is-server" : ""} ${visited.includes(key) ? "is-visited" : ""}`}><small>{cellName({ col, row })}</small>{wall && <div className="bug-block"><span>×</span></div>}{key === keyOf(SERVER) && <div className="server-target"><i /><i /><i /><b>SERVER</b></div>}{key === keyOf(robot) && <div className={`robot-character dir-${direction}`}><RoboDuckTop /></div>}</div>; })}</div>
       <div className="robot-board-foot"><span>&gt; start B6 / target F2</span><b>{status === "failed" ? "EXECUTION FAILED" : status === "success" ? "CODE DELIVERED" : `${visited.length - 1} CELLS PASSED`}</b></div></div>
-    <div className="program-panel visual-program-panel"><span className="game-kicker">ЗАДАНИЕ 06 / VISUAL PROGRAM</span><h1>Собери код.<br /><em>Запусти утку.</em></h1><p>Собери цикл из условий и действий. Утка начинает в B6, смотрит вверх и повторяет команды, пока не окажется у сервера.</p>
-      <div className="visual-program-guide"><span><b>1</b>Начни с цикла</span><span><b>2</b>Вложи условия и действия</span><span><b>3</b>Закрой оба блока</span></div>
-      <div className="command-palette"><span>БЛОКИ · ПЕРЕТАЩИ ИЛИ НАЖМИ</span><div className="palette-logic">{palette.filter((command) => commandInfo[command].group === "logic").map((command) => <button type="button" key={command} draggable={!locked} onDragStart={(event) => paletteDrag(event, command)} onClick={() => addCommand(command)} disabled={locked}><b>{commandInfo[command].icon}</b><small>{commandInfo[command].label}</small><i>+</i></button>)}</div><div className="palette-actions">{palette.filter((command) => commandInfo[command].group === "action").map((command) => <button type="button" key={command} draggable={!locked} onDragStart={(event) => paletteDrag(event, command)} onClick={() => addCommand(command)} disabled={locked}><b>{commandInfo[command].icon}</b><small>{commandInfo[command].label}</small><i>+</i></button>)}</div></div>
-      <div ref={programRef} className={`visual-code ${!commands.length ? "is-empty" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={dropOnProgram}><div className="visual-code-head"><span>МОЯ ПРОГРАММА</span><b>{commands.length} КОМАНД</b></div>
-        {!commands.length ? <div className="visual-code-empty"><strong>ПРОГРАММА ПУСТА</strong><span>Начни с блока цикла, затем добавь условия и действия</span></div> : <ol>{commands.map((command, index) => { const indent = [2, 4, 6].includes(index) ? 2 : index > 0 && index < 8 ? 1 : 0; return <li key={`${command}-${index}`} draggable={!locked} onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); moveDragged(index); }} className={`${commandInfo[command].group === "logic" ? "is-logic" : "is-action"} indent-${indent} ${activeIndex === index ? failedIndex === index ? "is-failed" : "is-active" : ""}`}><span>{String(index + 1).padStart(2, "0")}</span><b>{commandInfo[command].icon}</b><strong>{commandInfo[command].short}</strong><div><button onClick={() => moveCommand(index, -1)} disabled={locked || index === 0} aria-label="Переместить вверх">↑</button><button onClick={() => moveCommand(index, 1)} disabled={locked || index === commands.length - 1} aria-label="Переместить вниз">↓</button><button onClick={() => removeCommand(index)} disabled={locked} aria-label="Удалить">×</button></div></li>; })}</ol>}</div>
-      <div className="program-actions visual-program-actions">{status === "failed" ? <button className="edit-program" onClick={() => { setStatus("idle"); resetRobot(); setMessage("Исправь выделенную команду и попробуй ещё раз."); }}>ИЗМЕНИТЬ ПРОГРАММУ</button> : <button className="run-program" onClick={() => void runProgram()} disabled={locked || !commands.length}>ЗАПУСТИТЬ <span>↗</span></button>}<button className="preview-program" onClick={() => void runProgram(true)} disabled={locked || !commands.length}>ПРЕДПРОСМОТР</button><button className="reset-program" onClick={resetProgram} disabled={locked || !commands.length}>ОЧИСТИТЬ</button><button className="robot-hint-button" onClick={showHint} disabled={locked}><span>?</span>ПОДСКАЗКА</button></div>
+    <div className="program-panel visual-program-panel"><span className="game-kicker">ЗАДАНИЕ 06 / VISUAL PROGRAM</span><h1>Собери код.<br /><em>Запусти утку.</em></h1><p>Внутри цикла можно сразу выполнять действия или использовать условия. Нажимай «Проверить», чтобы увидеть, как утка понимает готовую часть программы.</p>
+      <div className="visual-program-guide"><span><b>1</b>Начни с цикла</span><span><b>2</b>Добавляй действия и условия</span><span><b>3</b>Закрой открытые блоки</span></div><div className="program-block-rule"><b>УСЛОВИЕ</b><span>Для решения нужно использовать 9 блоков кода.</span></div>
+      <div className="command-palette"><span>БЛОКИ · ПЕРЕТАЩИ ИЛИ НАЖМИ</span><div className="palette-logic">{palette.filter((command) => commandInfo[command].group === "logic").map((command) => <button type="button" key={command} draggable={!locked && commands.length < 9} onDragStart={(event) => paletteDrag(event, command)} onClick={() => addCommand(command)} disabled={locked || commands.length >= 9}><b>{commandInfo[command].icon}</b><small>{commandInfo[command].label}</small><i>+</i></button>)}</div><div className="palette-actions">{palette.filter((command) => commandInfo[command].group === "action").map((command) => <button type="button" key={command} draggable={!locked && commands.length < 9} onDragStart={(event) => paletteDrag(event, command)} onClick={() => addCommand(command)} disabled={locked || commands.length >= 9}><b>{commandInfo[command].icon}</b><small>{commandInfo[command].label}</small><i>+</i></button>)}</div></div>
+      <div ref={programRef} className={`visual-code ${!commands.length ? "is-empty" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={dropOnProgram}><div className="visual-code-head"><span>МОЯ ПРОГРАММА</span><b>{commands.length} / 9 БЛОКОВ</b></div>
+        {!commands.length ? <div className="visual-code-empty"><strong>ПРОГРАММА ПУСТА</strong><span>Начни с цикла, затем добавляй действия напрямую или объединяй их с условиями</span></div> : <ol>{commands.map((command, index) => { const previous = commands[index - 1]; const branchAction = isAction(command) && (previous === "if_front" || isSideCondition(previous) || previous === "else"); const remainingEnds = command === "end" ? commands.slice(index).filter((item) => item === "end").length : 0; const indent = index === 0 ? 0 : branchAction ? 2 : command === "end" ? remainingEnds > 1 ? 1 : 0 : 1; return <li key={`${command}-${index}`} draggable={!locked} onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); moveDragged(index); }} className={`${commandInfo[command].group === "logic" ? "is-logic" : "is-action"} indent-${indent} ${activeIndex === index ? failedIndex === index ? "is-failed" : "is-active" : ""}`}><span>{String(index + 1).padStart(2, "0")}</span><b>{commandInfo[command].icon}</b><strong>{commandInfo[command].short}</strong><div><button onClick={() => moveCommand(index, -1)} disabled={locked || index === 0} aria-label="Переместить вверх">↑</button><button onClick={() => moveCommand(index, 1)} disabled={locked || index === commands.length - 1} aria-label="Переместить вниз">↓</button><button onClick={() => removeCommand(index)} disabled={locked} aria-label="Удалить">×</button></div></li>; })}</ol>}</div>
+      <div className="program-actions visual-program-actions">{status === "failed" ? <button className="edit-program" onClick={() => { setStatus("idle"); resetRobot(); setMessage("Исправь выделенную команду и попробуй ещё раз."); }}>ИЗМЕНИТЬ ПРОГРАММУ</button> : <button className="run-program" onClick={() => void runProgram()} disabled={locked || !commands.length}>ЗАПУСТИТЬ <span>↗</span></button>}<button className="preview-program" onClick={() => void previewProgram()} disabled={locked || !commands.length}>ПРОВЕРИТЬ</button><button className="reset-program" onClick={resetProgram} disabled={locked || !commands.length}>ОЧИСТИТЬ</button><button className="robot-hint-button" onClick={showHint} disabled={locked}><span>?</span>ПОДСКАЗКА</button></div>
       <div className={`program-status ${status === "failed" ? "is-error" : ""}`}><span>{message}</span><b>НЕУДАЧНЫХ ЗАПУСКОВ: {failures}</b></div>
       <div className={`robot-hint-helper ${hintOpen ? "is-talking" : ""}`}><div className="duck-speech"><span>{nextHint}</span><button onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
     </div></section>
