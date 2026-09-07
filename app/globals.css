@@ -190,3 +190,5 @@ h1{margin:26px 0 23px;font-size:clamp(64px,7.2vw,116px);line-height:.83;letter-s
 @media(max-width:620px){.network-board{width:calc(100% - 20px)}.network-cell>button{width:100%;height:100%;left:0;top:0}.network-cell>button>strong{font-size:6px}}
 
 .network-copy{animation:none}.network-copy h1{animation:none!important}.network-console{animation-duration:.5s;animation-delay:0s}
+
+.final-node.is-unlocked{cursor:pointer;border-color:#68d39b;background:linear-gradient(90deg,rgba(104,211,155,.11),rgba(0,167,225,.04));box-shadow:inset 3px 0 0 #68d39b}.final-node.is-unlocked .node-number{color:var(--navy);border-color:#68d39b;background:#68d39b}.final-node.is-unlocked .node-copy strong,.final-node.is-unlocked .node-copy small{color:#b9ded0}.final-node.is-unlocked .locked{color:#68d39b;border-color:#68d39b}.final-node.is-unlocked:hover{background:linear-gradient(90deg,rgba(104,211,155,.18),rgba(0,167,225,.08))}

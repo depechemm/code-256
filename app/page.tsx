@@ -45,7 +45,7 @@ export default function Home() {
       setCurrentStage(restoredStage);
       setMemoryRound(progress.memoryRound);
       setTaskOneComplete(progress.task1Complete);
-      setActiveModule(Math.min(Math.max(restoredStage - 1, 0), QUEST_TASKS.length - 1));
+      setActiveModule(restoredStage > QUEST_TASKS.length ? -1 : Math.min(Math.max(restoredStage - 1, 0), QUEST_TASKS.length - 1));
     }, 0);
     return () => window.clearTimeout(restore);
   }, []);
@@ -130,7 +130,7 @@ export default function Home() {
   function completeRobot() {
     updateQuestProgress({ task6Complete: true, currentStage: 7 });
     setCurrentStage(7);
-    setActiveModule(5);
+    setActiveModule(-1);
   }
 
   function startQuest(event: FormEvent<HTMLFormElement>) {
@@ -218,7 +218,7 @@ export default function Home() {
                 const isLocked = index > currentIndex;
                 return (
                 <button
-                  className={`node-row ${activeModule === index ? "is-active" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "is-done" : ""}`}
+                  className={`node-row ${activeModule === index && !isDone ? "is-active" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "is-done" : ""}`}
                   key={module.code}
                   type="button"
                   onClick={() => started && !isLocked ? openTask(module.id) : setActiveModule(index)}
@@ -227,13 +227,13 @@ export default function Home() {
                   disabled={started && isLocked}
                 >
                   <span className="node-number">0{index + 1}</span>
-                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>◉ {module.time} · фрагмент: <em>{isDone ? module.fragment : "???"}</em></small></span>
+                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>{module.id === 6 ? <>◉ {module.time} · {isDone ? <em>код доставлен</em> : "финальный этап"}</> : <>◉ {module.time} · фрагмент: <em>{isDone ? module.fragment : "???"}</em></>}</small></span>
                   <span className="node-action">{isDone ? "DONE" : isCurrent ? "ACTIVE" : isLocked ? "LOCKED" : activeModule === index ? "OPEN" : "+"}</span>
                 </button>
               )})}
             </div>
-            <button className="final-node" type="button" disabled={currentStage < 7} onClick={() => setView("final")} aria-label={currentStage < 7 ? "Финальный терминал заблокирован" : "Открыть финальный терминал"}>
-              <span className="node-number">★</span><span className="node-copy"><strong>[SERVER] <b>Финальный терминал</b></strong><small>Доступ после доставки кода</small></span><span className="locked">LOCKED</span>
+            <button className={`final-node ${currentStage >= 7 ? "is-unlocked" : ""}`} type="button" disabled={currentStage < 7} onClick={() => setView("final")} aria-label={currentStage < 7 ? "Финальный терминал заблокирован" : "Открыть финальный терминал"}>
+              <span className="node-number">★</span><span className="node-copy"><strong>[SERVER] <b>Финальный терминал</b></strong><small>{currentStage >= 7 ? "Код доставлен · терминал доступен" : "Доступ после доставки кода"}</small></span><span className="locked">{currentStage >= 7 ? "OPEN" : "LOCKED"}</span>
             </button>
           </div>
           <div className="map-footer"><p><span>&gt;</span> {currentStage > 6 ? "all nodes complete / server ready" : `active node: 0${currentStage} / ${modules[currentStage - 1]?.code}`}</p><div className="signal" aria-hidden="true"><i /><i /><i /><i /><i /></div></div>
@@ -257,7 +257,7 @@ export default function Home() {
             <div className="completed-notice-icon" aria-hidden="true">✓</div><span>ЗАДАНИЕ УЖЕ ПРОЙДЕНО</span>
             <h2 id="completed-notice-title">Поздравляем!</h2>
             <p>{isDelivery ? "Вы уже доставили код на центральный сервер. Повторный запуск не требуется — финальный терминал разблокирован." : <>Вы уже восстановили модуль «{task.title}». Повторный запуск не требуется — результат и фрагмент сохранены.</>}</p>
-            <div className="completed-notice-fragment"><small>{isDelivery ? "ДОСТУП К ТЕРМИНАЛУ" : "ФРАГМЕНТ КОДА"}</small><strong>{isDelivery ? "OPEN" : task.fragment}</strong></div>
+            {!isDelivery && <div className="completed-notice-fragment"><small>ФРАГМЕНТ КОДА</small><strong>{task.fragment}</strong></div>}
             <button type="button" onClick={() => setCompletedTaskNotice(null)}>ПОНЯТНО</button>
           </section>
         </div>;
