@@ -67,26 +67,21 @@ function hasOpenExit(key: string, rotations: Record<string, number>) {
     return !next || !rotatedLinks(next, rotations).includes(OPPOSITE[direction]);
   });
 }
-function findPacketPath(rotations: Record<string, number>) {
-  const queue = [{ key: CLIENT, routerSeen: false, path: [CLIENT] }]; const seen = new Set([`${CLIENT}|0`]); const component = new Set([CLIENT]); const paths = new Map<string, string[]>([[CLIENT, [CLIENT]]]); let longest = [CLIENT]; let successPath: string[] | null = null;
-  while (queue.length) {
-    const current = queue.shift()!; if (current.path.length > longest.length) longest = current.path;
-    const routerSeen = current.routerSeen || current.key === ROUTER;
-    if (current.key === SERVER && routerSeen && !successPath) successPath = current.path;
-    for (const next of connectedNeighbors(current.key, rotations)) {
-      component.add(next); if (!paths.has(next)) paths.set(next, [...current.path, next]);
-      const nextSeen = routerSeen || next === ROUTER; const state = `${next}|${Number(nextSeen)}`;
-      if (!seen.has(state)) { seen.add(state); queue.push({ key: next, routerSeen: nextSeen, path: [...current.path, next] }); }
-    }
+function analyzeNetwork(rotations: Record<string, number>) {
+  const visited = new Set([CLIENT]); const waves: string[][] = [[CLIENT]]; let frontier = [CLIENT];
+  while (frontier.length) {
+    const nextWave: string[] = [];
+    for (const key of frontier) for (const next of connectedNeighbors(key, rotations)) if (!visited.has(next)) { visited.add(next); nextWave.push(next); }
+    if (!nextWave.length) break; waves.push(nextWave); frontier = nextWave;
   }
-  const leakingCell = [...component].find((key) => hasOpenExit(key, rotations));
-  if (leakingCell) return { success: false, leak: true, path: paths.get(leakingCell) ?? longest };
-  return { success: Boolean(successPath), leak: false, path: successPath ?? longest };
+  const leakingCells = [...visited].filter((key) => hasOpenExit(key, rotations));
+  const reachesRouter = visited.has(ROUTER); const reachesServer = visited.has(SERVER);
+  return { success: reachesRouter && reachesServer && !leakingCells.length, leak: Boolean(leakingCells.length), leakingCells, waves };
 }
 
 export default function NetworkGame({ totalErrors, totalHints, onError, onHint, onComplete, onNext, onExit }: Props) {
   const [rotations, setRotations] = useState<Record<string, number>>({}); const [status, setStatus] = useState<Status>("ready");
-  const [packetCell, setPacketCell] = useState<string | null>(null); const [traced, setTraced] = useState<string[]>([]); const [hintUsed, setHintUsed] = useState(false);
+  const [packetCells, setPacketCells] = useState<string[]>([]); const [traced, setTraced] = useState<string[]>([]); const [leakingCells, setLeakingCells] = useState<string[]>([]); const [hintUsed, setHintUsed] = useState(false);
   const [hintMode, setHintMode] = useState<"closed" | "shown">("closed"); const [message, setMessage] = useState("Поверни элементы и восстанови маршрут через ROUTER.");
   const [rewardVisible, setRewardVisible] = useState(false);
   const runId = useRef(0);
@@ -94,11 +89,12 @@ export default function NetworkGame({ totalErrors, totalHints, onError, onHint, 
   useEffect(() => () => { runId.current += 1; }, []);
   const cells = useMemo(() => Array.from({ length: 36 }, (_, index) => `${index % 6}-${Math.floor(index / 6)}`), []);
   const pause = (ms: number, id: number) => new Promise<boolean>((resolve) => window.setTimeout(() => resolve(runId.current === id), ms));
-  function rotateTile(key: string) { if (status === "sending" || status === "success") return; setStatus("ready"); setTraced([]); setPacketCell(null); setMessage("Конфигурация изменена. Можно отправлять пакет."); setRotations((current) => { const next = { ...current, [key]: ((current[key] ?? 0) + 1) % 4 }; updateQuestProgress({ networkRotations: next }); return next; }); }
+  function rotateTile(key: string) { if (status === "sending" || status === "success") return; setStatus("ready"); setTraced([]); setPacketCells([]); setLeakingCells([]); setMessage("Конфигурация изменена. Можно отправлять пакет."); setRotations((current) => { const next = { ...current, [key]: ((current[key] ?? 0) + 1) % 4 }; updateQuestProgress({ networkRotations: next }); return next; }); }
   async function sendPacket() {
-    if (status === "sending" || status === "success" || !Object.keys(rotations).length) return; const id = ++runId.current; const result = findPacketPath(rotations); setStatus("sending"); setHintMode("closed"); setTraced([]); setMessage("Пакет отправлен. Проверяем маршрут…");
-    for (const key of result.path) { setPacketCell(key); setTraced((current) => [...current, key]); if (!await pause(120, id)) return; }
-    if (!result.success) { setStatus("failed"); setMessage(result.leak ? "Пакет потерян: в подключённой сети остался открытый выход." : "Пакет потерян. Соединение с сервером не восстановлено."); onError(); await pause(900, id); if (runId.current === id) setPacketCell(null); return; }
+    if (status === "sending" || status === "success" || !Object.keys(rotations).length) return; const id = ++runId.current; const result = analyzeNetwork(rotations); setStatus("sending"); setHintMode("closed"); setTraced([]); setLeakingCells([]); setMessage("Пакет отправлен. Сигнал проходит по всей подключённой сети…");
+    for (const wave of result.waves) { const visibleWave = result.success ? wave : wave.filter((key) => key !== SERVER); if (!visibleWave.length) continue; setPacketCells(visibleWave); setTraced((current) => Array.from(new Set([...current, ...visibleWave]))); if (!await pause(180, id)) return; }
+    setPacketCells([]);
+    if (!result.success) { setStatus("failed"); setLeakingCells(result.leakingCells); setMessage(result.leak ? "Пакет потерян: в подключённой сети остался открытый выход. Замкни все ответвления и контуры." : "Пакет потерян. Сеть не соединяет CLIENT, ROUTER и SERVER в единый контур."); onError(); return; }
     setStatus("success"); setMessage("Соединение восстановлено. Пакет успешно доставлен на центральный сервер."); updateQuestProgress({ task5Complete: true, currentStage: 6, fragments: Array.from(new Set([...loadQuestProgress().fragments, "6"])) }); onComplete(); await pause(420, id); if (runId.current === id) setRewardVisible(true);
   }
   function showHint() { if (!hintUsed) { setHintUsed(true); onHint(); updateQuestProgress({ networkHintUsed: true }); } setHintMode("shown"); }
@@ -106,12 +102,12 @@ export default function NetworkGame({ totalErrors, totalHints, onError, onHint, 
   return <QuestStepShell code="NET" step={5} title="Восстанови соединение" errors={totalErrors} hints={totalHints} onExit={onExit}>
     <section className={`network-layout network-${status}`}>
       <div className="network-copy"><span className="game-kicker">ЗАДАНИЕ 05 / NETWORK REPAIR</span><h1>Восстанови<br /><em>соединение</em></h1><p><b>Часть сетевой инфраструктуры повреждена.</b> Поворачивай элементы сети так, чтобы пакет прошёл от CLIENT через обязательный узел ROUTER к SERVER.</p>
-        <div className="network-rules"><div><span>01</span><p>Нажатие поворачивает элемент на 90°. Повороты не считаются ошибками.</p></div><div><span>02</span><p>Маршрут должен быть непрерывным, пройти через ROUTER и не потеряться в ложных контурах.</p></div></div>
+        <div className="network-rules"><div><span>01</span><p>Нажатие поворачивает элемент на 90°. Повороты не считаются ошибками.</p></div><div><span>02</span><p>Сигнал идёт по всем веткам. Каждый выход и контур должен быть замкнут, иначе пакет потеряется.</p></div></div>
         <button className="bugs-hint" type="button" onClick={showHint} disabled={status === "sending" || status === "success"}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
         <div className={`network-duck-helper ${hintMode === "shown" ? "is-talking" : ""}`}><div className="duck-speech"><span>Начни с CLIENT и проверь, куда может идти соединение из каждой следующей клетки. Не забудь: маршрут должен пройти через ROUTER.</span><button onClick={() => setHintMode("closed")}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
       <div className="network-console"><div className="network-head"><span>NETWORK_TOPOLOGY / 6×6</span><b>{status === "sending" ? "PACKET IN TRANSIT" : status === "success" ? "ONLINE" : "CONNECTION LOST"}</b></div>
-        <div className="network-board" aria-label="Сетевое поле шесть на шесть">{cells.map((key) => { const tile = TILE_MAP.get(key); const rotation = rotations[key] ?? 0; const hinted = hintMode === "shown" && [CLIENT, ROUTER, SERVER].includes(key); return <div className={`network-cell ${tile ? "has-tile" : ""} ${hinted ? "is-hint" : ""} ${traced.includes(key) ? "is-traced" : ""}`} key={key}>{tile && <button type="button" onClick={() => rotateTile(key)} disabled={status === "sending" || status === "success"} aria-label={`Повернуть элемент ${tile.kind}`} style={{ "--rotation": `${rotation * 90}deg` } as CSSProperties}><Pipe links={tile.links} /><strong>{tile.kind === "client" ? "CLIENT" : tile.kind === "router" ? "ROUTER" : tile.kind === "server" ? "SERVER" : ""}</strong></button>}{packetCell === key && <i className="network-packet" aria-label="Пакет" />}</div>; })}</div>
+        <div className="network-board" aria-label="Сетевое поле шесть на шесть">{cells.map((key) => { const tile = TILE_MAP.get(key); const rotation = rotations[key] ?? 0; const hinted = hintMode === "shown" && [CLIENT, ROUTER, SERVER].includes(key); return <div className={`network-cell ${tile ? "has-tile" : ""} ${hinted ? "is-hint" : ""} ${traced.includes(key) ? "is-traced" : ""} ${leakingCells.includes(key) ? "is-leaking" : ""}`} key={key}>{tile && <button type="button" onClick={() => rotateTile(key)} disabled={status === "sending" || status === "success"} aria-label={`Повернуть элемент ${tile.kind}`} style={{ "--rotation": `${rotation * 90}deg` } as CSSProperties}><Pipe links={tile.links} /><strong>{tile.kind === "client" ? "CLIENT" : tile.kind === "router" ? "ROUTER" : tile.kind === "server" ? "SERVER" : ""}</strong></button>}{packetCells.includes(key) && <i className="network-packet" aria-label="Пакет" />}</div>; })}</div>
         <div className={`network-message message-${status}`} aria-live="polite"><span>{message}</span><b>{status === "success" ? "ACCESS RESTORED" : "CLIENT → ROUTER → SERVER"}</b></div><button className="send-packet" type="button" onClick={() => void sendPacket()} disabled={status === "sending" || status === "success"}>ОТПРАВИТЬ ПАКЕТ <span>↗</span></button>
       </div>
     </section>
