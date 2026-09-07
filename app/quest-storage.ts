@@ -8,7 +8,13 @@ export type QuestProgress = {
   task1Complete: boolean;
   task2Complete: boolean;
   task3Complete: boolean;
+  cipherAnswer: string;
+  cipherHintUsed: boolean;
   task4Complete: boolean;
+  task6Complete: boolean;
+  robotProgram: string[];
+  robotFailures: number;
+  robotHintUsed: boolean;
   errors: number;
   hints: number;
   fragments: string[];
@@ -24,7 +30,13 @@ const initialProgress: QuestProgress = {
   task1Complete: false,
   task2Complete: false,
   task3Complete: false,
+  cipherAnswer: "",
+  cipherHintUsed: false,
   task4Complete: false,
+  task6Complete: false,
+  robotProgram: [],
+  robotFailures: 0,
+  robotHintUsed: false,
   errors: 0,
   hints: 0,
   fragments: [],

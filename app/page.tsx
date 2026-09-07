@@ -6,6 +6,7 @@ import MemoryGame from "./memory-game";
 import BugDistributionGame from "./bug-distribution-game";
 import CipherGame from "./cipher-game";
 import AlgorithmGame from "./algorithm-game";
+import RobotGame from "./robot-game";
 import GenericQuestStep from "./generic-quest-step";
 import FinalTerminal from "./final-terminal";
 import { QUEST_TASKS } from "./quest-config";
@@ -38,10 +39,12 @@ export default function Home() {
       if (progress.participant) { setName(progress.participant); setStarted(true); }
       setTotalErrors(progress.errors);
       setTotalHints(progress.hints);
-      setCurrentStage(progress.currentStage);
+      const restoredStage = progress.currentStage === 5 ? 6 : progress.currentStage;
+      if (restoredStage !== progress.currentStage) updateQuestProgress({ currentStage: restoredStage });
+      setCurrentStage(restoredStage);
       setMemoryRound(progress.memoryRound);
       setTaskOneComplete(progress.task1Complete);
-      setActiveModule(Math.min(Math.max(progress.currentStage - 1, 0), QUEST_TASKS.length - 1));
+      setActiveModule(Math.min(Math.max(restoredStage - 1, 0), QUEST_TASKS.length - 1));
     }, 0);
     return () => window.clearTimeout(restore);
   }, []);
@@ -111,9 +114,15 @@ export default function Home() {
 
   function completeAlgorithm() {
     const progress = loadQuestProgress();
-    updateQuestProgress({ task4Complete: true, fragments: Array.from(new Set([...progress.fragments, "5"])), currentStage: Math.max(progress.currentStage, 5) });
-    setCurrentStage((stage) => Math.max(stage, 5));
-    setActiveModule(4);
+    updateQuestProgress({ task4Complete: true, fragments: Array.from(new Set([...progress.fragments, "5"])), currentStage: Math.max(progress.currentStage, 6) });
+    setCurrentStage((stage) => Math.max(stage, 6));
+    setActiveModule(5);
+  }
+
+  function completeRobot() {
+    updateQuestProgress({ task6Complete: true, currentStage: 7 });
+    setCurrentStage(7);
+    setActiveModule(5);
   }
 
   function startQuest(event: FormEvent<HTMLFormElement>) {
@@ -137,7 +146,8 @@ export default function Home() {
 
   if (view === "taskN" && selectedTask === 2) return <BugDistributionGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeBugDistribution} onNext={() => { setSelectedTask(3); setView("taskN"); }} onExit={() => setView("home")} />;
   if (view === "taskN" && selectedTask === 3) return <CipherGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeCipher} onNext={() => { setSelectedTask(4); setView("taskN"); }} onExit={() => setView("home")} />;
-  if (view === "taskN" && selectedTask === 4) return <AlgorithmGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeAlgorithm} onNext={() => { setSelectedTask(5); setView("taskN"); }} onExit={() => setView("home")} />;
+  if (view === "taskN" && selectedTask === 4) return <AlgorithmGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeAlgorithm} onNext={() => { setSelectedTask(6); setView("taskN"); }} onExit={() => setView("home")} />;
+  if (view === "taskN" && selectedTask === 6) return <RobotGame totalErrors={totalErrors} totalHints={totalHints} onError={registerError} onHint={registerHint} onComplete={completeRobot} onFinal={() => setView("final")} onExit={() => setView("home")} />;
   if (view === "taskN") return <GenericQuestStep taskId={selectedTask} errors={totalErrors} onExit={() => setView("home")} />;
   if (view === "final") return <FinalTerminal errors={totalErrors} hints={totalHints} locked={currentStage < 7} onExit={() => setView("home")} />;
 
@@ -160,8 +170,9 @@ export default function Home() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Айтипелаг, на главную"><span className="brand-mark" aria-hidden="true"><Image src="/aytipelag-logo.png" alt="" width={750} height={354} priority /></span><span>айтипелаг</span></a>
         {started && <nav className="quest-navigation" aria-label="Навигация по заданиям">{QUEST_TASKS.map((task) => {
-          const unlocked = task.id <= currentStage;
-          return <button type="button" key={task.id} disabled={!unlocked} onClick={() => openTask(task.id)} title={unlocked ? task.title : "Сначала завершите предыдущее задание"}><span>0{task.id}</span><b>{task.code}</b>{!unlocked && <i>×</i>}</button>;
+          const skipped = task.id === 5;
+          const unlocked = task.id <= currentStage && !skipped;
+          return <button type="button" key={task.id} disabled={!unlocked} onClick={() => openTask(task.id)} title={skipped ? "Задание временно пропущено" : unlocked ? task.title : "Сначала завершите предыдущее задание"}><span>0{task.id}</span><b>{skipped ? "SKIP" : task.code}</b>{!unlocked && <i>×</i>}</button>;
         })}</nav>}
         <div className="system-status"><span className="status-dot" /><span>system.online</span><b suppressHydrationWarning>{currentDate}</b></div>
       </header>
@@ -194,9 +205,10 @@ export default function Home() {
             <div className="node-list">
               {modules.map((module, index) => {
                 const currentIndex = Math.min(currentStage - 1, modules.length - 1);
-                const isDone = index < currentIndex;
-                const isCurrent = index === currentIndex;
-                const isLocked = index > currentIndex;
+                const isSkipped = module.id === 5;
+                const isDone = (currentStage > QUEST_TASKS.length || index < currentIndex) && !isSkipped;
+                const isCurrent = currentStage <= QUEST_TASKS.length && index === currentIndex;
+                const isLocked = index > currentIndex || isSkipped;
                 return (
                 <button
                   className={`node-row ${activeModule === index ? "is-active" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "is-done" : ""}`}
@@ -208,8 +220,8 @@ export default function Home() {
                   disabled={started && isLocked}
                 >
                   <span className="node-number">0{index + 1}</span>
-                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>◉ {module.time} · фрагмент: <em>{isDone ? module.fragment : "???"}</em></small></span>
-                  <span className="node-action">{isDone ? "DONE" : isCurrent ? "ACTIVE" : isLocked ? "LOCKED" : activeModule === index ? "OPEN" : "+"}</span>
+                  <span className="node-copy"><strong>[{module.code}] <b>{module.title}</b></strong><small>◉ {module.time} · фрагмент: <em>{isSkipped ? "SKIP" : isDone ? module.fragment : "???"}</em></small></span>
+                  <span className="node-action">{isSkipped ? "SKIPPED" : isDone ? "DONE" : isCurrent ? "ACTIVE" : isLocked ? "LOCKED" : activeModule === index ? "OPEN" : "+"}</span>
                 </button>
               )})}
             </div>
@@ -231,13 +243,14 @@ export default function Home() {
       </section>
       {completedTaskNotice !== null && (() => {
         const task = QUEST_TASKS[completedTaskNotice - 1];
+        const isDelivery = task.id === 6;
         return <div className="completed-notice-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCompletedTaskNotice(null); }}>
           <section className="completed-notice" role="dialog" aria-modal="true" aria-labelledby="completed-notice-title">
             <div className="completed-notice-head"><span>NODE_0{task.id} / ARCHIVED</span><b>COMPLETE</b></div>
             <div className="completed-notice-icon" aria-hidden="true">✓</div><span>ЗАДАНИЕ УЖЕ ПРОЙДЕНО</span>
             <h2 id="completed-notice-title">Поздравляем!</h2>
-            <p>Вы уже восстановили модуль «{task.title}». Повторный запуск не требуется — результат и фрагмент сохранены.</p>
-            <div className="completed-notice-fragment"><small>ФРАГМЕНТ КОДА</small><strong>{task.fragment}</strong></div>
+            <p>{isDelivery ? "Вы уже доставили код на центральный сервер. Повторный запуск не требуется — финальный терминал разблокирован." : <>Вы уже восстановили модуль «{task.title}». Повторный запуск не требуется — результат и фрагмент сохранены.</>}</p>
+            <div className="completed-notice-fragment"><small>{isDelivery ? "ДОСТУП К ТЕРМИНАЛУ" : "ФРАГМЕНТ КОДА"}</small><strong>{isDelivery ? "OPEN" : task.fragment}</strong></div>
             <button type="button" onClick={() => setCompletedTaskNotice(null)}>ПОНЯТНО</button>
           </section>
         </div>;
