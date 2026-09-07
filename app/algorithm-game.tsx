@@ -62,7 +62,7 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
 
   function checkAnswer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (status !== "ready" && status !== "error") return;
+    if (status !== "idle" && status !== "ready" && status !== "error") return;
     if (answer.trim() === "23") {
       setStatus("complete");
       setActiveLine(8);
@@ -84,13 +84,13 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
       <div className="algorithm-copy">
         <span className="game-kicker">ЗАДАНИЕ 04 / EXECUTION TRACE</span>
         <h1>Выполни<br /><em>алгоритм</em></h1>
-        <p>Проследи изменение переменной <b>x</b> на каждой итерации и введи её итоговое значение.</p>
+        <p>Выполни цикл, проследи изменение переменной <b>x</b> и введи её итоговое значение. Анимацию трассировки можно запустить для наглядности, но это необязательно.</p>
         <div className="iteration-track" aria-label={`Текущая итерация: ${iteration} из 4`}>
           {branches.map((_, index) => <span key={index} className={iteration > index ? iteration === index + 1 && status === "running" ? "current" : "done" : ""}>{iteration > index && !(iteration === index + 1 && status === "running") ? "✓" : `0${index + 1}`}</span>)}
         </div>
-        <div className="algorithm-status" aria-live="polite"><strong>{status === "idle" ? "ПРОГРАММА ЗАГРУЖЕНА" : status === "running" ? `ВЫПОЛНЯЕТСЯ ИТЕРАЦИЯ ${iteration}/4` : status === "error" ? "ЗНАЧЕНИЕ НЕВЕРНО" : status === "complete" ? "АЛГОРИТМ ВЫПОЛНЕН" : "ВЫЧИСЛЕНИЕ ЗАВЕРШЕНО"}</strong><span>{status === "running" ? "Следи за активной строкой псевдокода" : status === "error" ? "Проверь записанные значения после каждого повтора" : status === "ready" ? "Введи получившееся значение x" : "Начальное значение: x = 6"}</span></div>
+        <div className="algorithm-status" aria-live="polite"><strong>{status === "idle" ? "4 ИТЕРАЦИИ · ГОТОВО К РЕШЕНИЮ" : status === "running" ? `ВЫПОЛНЯЕТСЯ ИТЕРАЦИЯ ${iteration}/4` : status === "error" ? "ЗНАЧЕНИЕ НЕВЕРНО" : status === "complete" ? "АЛГОРИТМ ВЫПОЛНЕН" : "ВЫЧИСЛЕНИЕ ЗАВЕРШЕНО"}</strong><span>{status === "running" ? "Следи за активной строкой псевдокода" : status === "error" ? "Проверь записанные значения после каждого повтора" : status === "ready" ? "Введи получившееся значение x" : "Можно считать самостоятельно или посмотреть трассировку"}</span></div>
         <div className="algorithm-controls">
-          {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ЗАПУСТИТЬ АЛГОРИТМ <span>↗</span></button>}
+          {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ПОКАЗАТЬ ТРАССИРОВКУ <span>↗</span></button>}
           {status !== "idle" && status !== "running" && <button className="algorithm-replay" type="button" onClick={() => void runAlgorithm()} disabled={status === "complete"}>ПОВТОРИТЬ ТРАССИРОВКУ</button>}
           <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
         </div>
@@ -100,17 +100,17 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
       <div className="algorithm-terminal">
         <div className="algorithm-head"><span>ALGORITHM.PSEUDO / READ ONLY</span><b>{status === "running" ? "RUNNING" : status === "complete" ? "COMPLETE" : "READY"}</b></div>
         <div className="pseudocode" aria-label="Псевдокод алгоритма">
-          <div className={activeLine === 1 ? "active" : ""}><i>01</i><code>x ← <em>6</em></code></div>
-          <div className={activeLine === 2 ? "active" : ""}><i>02</i><code><b>FOR</b> i ← 1 <b>TO</b> 4 <b>DO</b></code></div>
+          <div className={activeLine === 1 ? "active" : ""}><i>01</i><code>x = <em>6</em></code></div>
+          <div className={activeLine === 2 ? "active" : ""}><i>02</i><code><b>FOR</b> i = 1 <b>TO</b> 4 <b>DO</b></code></div>
           <div className={activeLine === 3 ? "active" : ""}><i>03</i><code>    <b>IF</b> x MOD 2 = 0 <b>THEN</b></code></div>
-          <div className={activeLine === 4 ? "active branch-even" : ""}><i>04</i><code>        x ← x / 2 + <em>7</em></code></div>
+          <div className={activeLine === 4 ? "active branch-even" : ""}><i>04</i><code>        x = x / 2 + <em>7</em></code></div>
           <div className={activeLine === 5 ? "active" : ""}><i>05</i><code>    <b>ELSE</b></code></div>
-          <div className={activeLine === 6 ? "active branch-odd" : ""}><i>06</i><code>        x ← x × 2 − <em>3</em></code></div>
+          <div className={activeLine === 6 ? "active branch-odd" : ""}><i>06</i><code>        x = x × 2 − <em>3</em></code></div>
           <div className={activeLine === 7 ? "active" : ""}><i>07</i><code><b>END FOR</b></code></div>
           <div className={activeLine === 8 ? "active" : ""}><i>08</i><code><b>RETURN</b> x</code></div>
         </div>
         <div className="execution-register"><span>ITERATION</span><strong>{String(iteration).padStart(2, "0")} / 04</strong><span>REGISTER X</span><strong>{iteration === 0 ? "06" : status === "complete" ? "23" : "??"}</strong></div>
-        <form className="algorithm-answer" onSubmit={checkAnswer}><label htmlFor="algorithm-result">ИТОГОВОЕ ЗНАЧЕНИЕ X</label><div><span>x =</span><input id="algorithm-result" inputMode="numeric" autoComplete="off" value={answer} onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="?" disabled={status === "idle" || status === "running" || status === "complete"} /><button type="submit" disabled={!answer || status === "idle" || status === "running" || status === "complete"}>ПРОВЕРИТЬ <b>↗</b></button></div>{status === "error" && <p>РЕЗУЛЬТАТ НЕ СОВПАЛ — ПРОЙДИ ЧЕТЫРЕ ИТЕРАЦИИ ЕЩЁ РАЗ</p>}</form>
+        <form className="algorithm-answer" onSubmit={checkAnswer}><label htmlFor="algorithm-result">ИТОГОВОЕ ЗНАЧЕНИЕ X ПОСЛЕ 4 ИТЕРАЦИЙ</label><div><span>x =</span><input id="algorithm-result" inputMode="numeric" autoComplete="off" value={answer} onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="?" disabled={status === "running" || status === "complete"} /><button type="submit" disabled={!answer || status === "running" || status === "complete"}>ПРОВЕРИТЬ <b>↗</b></button></div>{status === "error" && <p>РЕЗУЛЬТАТ НЕ СОВПАЛ — ПРОЙДИ ЧЕТЫРЕ ИТЕРАЦИИ ЕЩЁ РАЗ</p>}</form>
       </div>
     </section>
 
