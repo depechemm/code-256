@@ -92,7 +92,7 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
         <div className="algorithm-controls">
           {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ПОКАЗАТЬ ТРАССИРОВКУ <span>↗</span></button>}
           {status !== "idle" && status !== "running" && <button className="algorithm-replay" type="button" onClick={() => void runAlgorithm()} disabled={status === "complete"}>ПОВТОРИТЬ ТРАССИРОВКУ</button>}
-          <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+          <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button>
         </div>
         <div className={`algorithm-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Кря! Заведите четыре строчки в черновике — по одной на каждый круг. Иначе икс убежит, он такой.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>

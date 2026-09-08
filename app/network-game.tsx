@@ -103,7 +103,7 @@ export default function NetworkGame({ totalErrors, totalHints, onError, onHint, 
     <section className={`network-layout network-${status}`}>
       <div className="network-copy"><span className="game-kicker">ЗАДАНИЕ 05 / NETWORK REPAIR</span><h1>Восстановите<br /><em>соединение</em></h1><p><b>Часть сетевой инфраструктуры повреждена.</b> Поворачивайте элементы сети так, чтобы пакет прошёл от CLIENT через обязательный узел ROUTER к SERVER.</p>
         <div className="network-rules"><div><span>01</span><p>Нажатие поворачивает элемент на 90°. Повороты не считаются ошибками.</p></div><div><span>02</span><p>Сигнал идёт по всем веткам. Каждый выход и контур должен быть замкнут, иначе пакет потеряется.</p></div></div>
-        <button className="bugs-hint" type="button" onClick={showHint} disabled={status === "sending" || status === "success"}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+        <button className="bugs-hint" type="button" onClick={showHint} disabled={status === "sending" || status === "success"}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button>
         <div className={`network-duck-helper ${hintMode === "shown" ? "is-talking" : ""}`}><div className="duck-speech"><span>Начните с CLIENT и проверьте, куда может идти соединение из каждой следующей клетки. Не забудьте: маршрут должен пройти через ROUTER.</span><button onClick={() => setHintMode("closed")}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
       <div className="network-console"><div className="network-head"><span>NETWORK_TOPOLOGY / 6×6</span><b>{status === "sending" ? "PACKET IN TRANSIT" : status === "success" ? "ONLINE" : "CONNECTION LOST"}</b></div>

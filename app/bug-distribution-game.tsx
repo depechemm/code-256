@@ -102,7 +102,7 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
           <li><b>03</b><span>Аня исправляла бэкенд.</span></li>
           <li><b>04</b><span>Вика не работала ни с фронтендом, ни с мобильным приложением.</span></li>
         </ol>
-        <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
+        <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button>
         <div className={`bugs-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Сначала закрепите крайние значения: фронтенд — 10:00, база данных — 13:00. Затем исключайте занятые роли.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
 
