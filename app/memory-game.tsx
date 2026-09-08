@@ -52,7 +52,6 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
   const [litCell, setLitCell] = useState<number | null>(null);
   const [pressedCell, setPressedCell] = useState<number | null>(null);
   const [hintCell, setHintCell] = useState<number | null>(null);
-  const [hintUsedRound, setHintUsedRound] = useState(false);
   const [duckTalking, setDuckTalking] = useState(false);
   const [status, setStatus] = useState<"briefing" | "showing" | "input" | "error" | "roundDone" | "complete">("briefing");
   const runId = useRef(0);
@@ -78,14 +77,12 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
   }
 
   function startRound() {
-    setHintUsedRound(false);
     void playSequence(masterSequence.slice(0, MEMORY_ROUNDS[round]));
   }
 
   function useHint() {
-    if (status !== "input" || hintUsedRound) return;
+    if (status !== "input" || duckTalking) return;
     const nextCell = sequence[input.length];
-    setHintUsedRound(true);
     setDuckTalking(true);
     setHintCell(nextCell);
     onHint();
@@ -118,7 +115,6 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
         const nextRound = round + 1;
         setStatus("roundDone");
         setRound(nextRound);
-        setHintUsedRound(false);
         onProgress(nextRound);
         window.setTimeout(() => void playSequence(masterSequence.slice(0, MEMORY_ROUNDS[nextRound])), 1100);
       }
@@ -144,7 +140,7 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
             {status === "complete" && <><strong>МОДУЛЬ ВОССТАНОВЛЕН</strong><span>Получен фрагмент кода: CO</span></>}
           </div>
           {status === "briefing" && <button className="game-start" onClick={startRound} type="button">ЗАПУСТИТЬ СИГНАЛ <span>↗</span></button>}
-          {status === "input" && <button className="hint-button" onClick={useHint} type="button" disabled={hintUsedRound}><span>?</span>{hintUsedRound ? "ПОДСКАЗКА ИСПОЛЬЗОВАНА" : "ПОЗВАТЬ РОБО-УТКУ"}<b>{totalHints}</b></button>}
+          {status === "input" && <><button className="hint-button" onClick={useHint} type="button" disabled={duckTalking}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button><p className="cumulative-hint-note">Каждый вызов утки добавляет одну подсказку. Количество подсказок и ошибок не ограничено.</p></>}
           <div className={`duck-helper ${duckTalking ? "is-talking" : ""}`} aria-live="polite">
             <div className="duck-speech"><span>Кря! Вот следующий импульс — постарайтесь запомнить.</span><button type="button" onClick={closeHint}>СПАСИБО!</button></div><RoboDuck />
           </div>
