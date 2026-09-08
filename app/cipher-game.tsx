@@ -6,17 +6,19 @@ import RoboDuckFace from "./robo-duck-face";
 import { loadQuestProgress, updateQuestProgress } from "./quest-storage";
 
 type Props = { totalErrors: number; totalHints: number; onError: () => void; onHint: () => void; onComplete: () => void; onNext: () => void; onExit: () => void };
+type DuckMessage = "dictionary" | "hint" | null;
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 export default function CipherGame({ totalErrors, totalHints, onError, onHint, onComplete, onNext, onExit }: Props) {
   const [answer, setAnswer] = useState("");
   const [status, setStatus] = useState<"idle" | "checking" | "error" | "success">("idle");
-  const [hintVisible, setHintVisible] = useState(false);
+  const [duckMessage, setDuckMessage] = useState<DuckMessage>("dictionary");
+  const [duckClosing, setDuckClosing] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
   const [dictionaryClosing, setDictionaryClosing] = useState(false);
-  const [dictionaryIntroOpen, setDictionaryIntroOpen] = useState(true);
   const dictionaryTimer = useRef<number | null>(null);
+  const duckTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const restore = window.setTimeout(() => {
@@ -28,12 +30,13 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
     return () => {
       window.clearTimeout(restore);
       if (dictionaryTimer.current !== null) window.clearTimeout(dictionaryTimer.current);
+      if (duckTimer.current !== null) window.clearTimeout(duckTimer.current);
     };
   }, []);
 
   function openDictionary() {
     if (dictionaryTimer.current !== null) window.clearTimeout(dictionaryTimer.current);
-    setDictionaryIntroOpen(false);
+    setDuckMessage(null);
     setDictionaryClosing(false);
     setDictionaryOpen(true);
   }
@@ -73,13 +76,24 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
   }
 
   function requestHint() {
-    setDictionaryIntroOpen(false);
+    if (duckTimer.current !== null) window.clearTimeout(duckTimer.current);
+    setDuckClosing(false);
     if (!hintUsed) {
       setHintUsed(true);
       updateQuestProgress({ cipherHintUsed: true });
       onHint();
     }
-    setHintVisible(true);
+    setDuckMessage("hint");
+  }
+
+  function closeDuckMessage() {
+    if (duckClosing) return;
+    setDuckClosing(true);
+    duckTimer.current = window.setTimeout(() => {
+      setDuckMessage(null);
+      setDuckClosing(false);
+      duckTimer.current = null;
+    }, 440);
   }
 
   return <QuestStepShell code="CIPHER" step={3} title="Зашифрованное сообщение" errors={totalErrors} hints={totalHints} onExit={onExit}>
@@ -89,8 +103,8 @@ export default function CipherGame({ totalErrors, totalHints, onError, onHint, o
         <h1>Зашифрованное<br /><em>сообщение</em></h1>
         <p>Найден фрагмент инструкции, использованной для шифрования сообщения. Само исходное сообщение повреждено. Восстановите его, используя найденный алгоритм.</p>
         <div className="cipher-encrypted-card"><small>ЗАШИФРОВАННОЕ СООБЩЕНИЕ</small><strong>QSECN</strong><span>5 SYMBOLS / A–Z</span></div>
-        <div className="cipher-helper-actions"><button className="bugs-hint cipher-simple-hint" type="button" onClick={requestHint} disabled={status === "success"}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОДСКАЗКА"}</button><button className={`alphabet-button ${dictionaryIntroOpen ? "is-pointed" : ""}`} type="button" onClick={openDictionary}><span>AZ</span>СЛОВАРЬ {dictionaryIntroOpen && <i className="dictionary-pointer" aria-hidden="true"><span>↑</span><small>НАЖИМАТЬ СЮДА</small></i>}</button></div>
-        <div className={`cipher-duck-message ${hintVisible || dictionaryIntroOpen ? "is-visible" : ""} ${dictionaryIntroOpen ? "is-dictionary-intro" : ""}`} aria-live="polite"><div className="duck-speech">{dictionaryIntroOpen ? <><span>Кря! Рядом доступен словарь букв и их позиций. Его можно открывать сколько угодно — это не считается подсказкой и не влияет на результат.</span><button type="button" onClick={() => setDictionaryIntroOpen(false)}>ХОРОШО</button></> : <><span>В записке указан алгоритм шифрования, а восстановить нужно исходное сообщение. Чтобы отменить последовательность действий, начните с последнего выполненного действия и двигайтесь в обратном порядке.</span><button type="button" onClick={() => setHintVisible(false)}>СПАСИБО!</button></>}</div><RoboDuckFace /></div>
+        <div className="cipher-helper-actions"><button className="bugs-hint cipher-simple-hint" type="button" onClick={requestHint} disabled={status === "success"}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button><button className={`alphabet-button ${duckMessage === "dictionary" ? "is-pointed" : ""}`} type="button" onClick={openDictionary}><span>AZ</span>СЛОВАРЬ {duckMessage === "dictionary" && <i className="dictionary-pointer" aria-hidden="true"><span>↑</span><small>НАЖИМАТЬ СЮДА</small></i>}</button></div>
+        {duckMessage !== null && <div className={`cipher-duck-message ${duckClosing ? "is-closing" : "is-visible"} ${duckMessage === "dictionary" ? "is-dictionary-intro" : ""}`} aria-live="polite"><div className="duck-speech">{duckMessage === "dictionary" ? <><span>Кря! Рядом доступен словарь букв и их позиций. Его можно открывать сколько угодно — это не считается подсказкой и не влияет на результат.</span><button type="button" onClick={closeDuckMessage} disabled={duckClosing}>ХОРОШО</button></> : <><span>В записке указан алгоритм шифрования, а восстановить нужно исходное сообщение. Чтобы отменить последовательность действий, начните с последнего выполненного действия и двигайтесь в обратном порядке.</span><button type="button" onClick={closeDuckMessage} disabled={duckClosing}>СПАСИБО!</button></>}</div><RoboDuckFace /></div>}
       </div>
 
       <div className="found-note-panel">
