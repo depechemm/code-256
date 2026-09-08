@@ -1,6 +1,7 @@
 export const QUEST_STORAGE_KEY = "code256.progress.v1";
 
 export type QuestProgress = {
+  attemptId: string;
   participant: string;
   startedAt: number | null;
   currentStage: number;
@@ -26,6 +27,7 @@ export type QuestProgress = {
 };
 
 const initialProgress: QuestProgress = {
+  attemptId: "",
   participant: "",
   startedAt: null,
   currentStage: 1,

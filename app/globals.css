@@ -269,3 +269,5 @@ h1{margin:26px 0 23px;font-size:clamp(64px,6.4vw,102px);line-height:.83;letter-s
 @media(min-width:851px) and (max-width:900px){.memory-layout{width:min(680px,calc(100% - 40px));grid-template-columns:1fr;padding-top:38px;gap:40px}.memory-board-wrap{justify-self:stretch;width:100%}}
 
 .cumulative-hint-note{width:max-content;max-width:100%;margin:7px 0 0;padding:7px 10px;border-left:2px solid #ffc84a;color:#bdab72;background:rgba(255,200,74,.055);font:600 14px/1.35 var(--font-geist-sans),sans-serif}.robot-cumulative-hint-note{width:100%;margin-top:6px}
+.result-saved-message{min-height:44px;padding:9px 12px;border:1px solid rgba(104,211,155,.38);display:flex;align-items:center;gap:10px;color:#87d9ad;background:rgba(104,211,155,.065);font:700 14px var(--font-geist-sans),sans-serif}.result-saved-message>span{width:25px;height:25px;display:grid;place-items:center;color:var(--navy);background:#68d39b}
+.terminal-result-card{border-color:rgba(0,167,225,.3);background:rgba(0,167,225,.035);box-shadow:12px 12px 0 rgba(0,167,225,.045)}.terminal-result-card .result-status>span{color:#9cb6c0;background:#123b4d}.terminal-result-card .result-status strong{color:#c1d4dc}

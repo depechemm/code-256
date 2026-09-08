@@ -1,7 +1,7 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
-import { FINAL_CODE, GOOGLE_FORM } from "./quest-settings";
+import { FINAL_CODE, RESULT_STORAGE_MODE } from "./quest-settings";
 import QuestStepShell from "./quest-step-shell";
 import RoboDuck from "./robo-duck";
 import { loadQuestProgress, updateQuestProgress } from "./quest-storage";
@@ -32,6 +32,7 @@ function formatDuration(milliseconds: number) {
 export default function FinalTerminal({ errors, hints = 0, locked, onExit }: FinalTerminalProps) {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ participant: string; time: string; finished: string } | null>(null);
   const [collectedFragments, setCollectedFragments] = useState<string[]>([]);
 
@@ -44,78 +45,54 @@ export default function FinalTerminal({ errors, hints = 0, locked, onExit }: Fin
     return () => window.clearTimeout(timer);
   }, [locked]);
 
-  function submitResult(nextResult: { participant: string; time: string }) {
-    try {
-      const targetName = `google-form-${Date.now()}`;
-      const iframe = document.createElement("iframe");
-      iframe.name = targetName;
-      iframe.hidden = true;
-      document.body.appendChild(iframe);
-
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = GOOGLE_FORM.submitUrl;
-      form.target = targetName;
-      form.hidden = true;
-      const [hours, minutes] = nextResult.time.split(":");
-      const values: Record<string, string> = {
-        [`entry.${GOOGLE_FORM.fields.participant}`]: nextResult.participant,
-        [`entry.${GOOGLE_FORM.fields.code}`]: FINAL_CODE,
-        [`entry.${GOOGLE_FORM.fields.time}_hour`]: hours,
-        [`entry.${GOOGLE_FORM.fields.time}_minute`]: minutes,
-        [`entry.${GOOGLE_FORM.fields.hints}`]: String(hints),
-      };
-      if (GOOGLE_FORM.fields.errors) values[`entry.${GOOGLE_FORM.fields.errors}`] = String(errors);
-      Object.entries(values).forEach(([name, value]) => {
-        const input = document.createElement("input");
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      });
-      document.body.appendChild(form);
-      form.submit();
-      window.setTimeout(() => {
-        form.remove();
-        iframe.remove();
-      }, 1400);
-    } catch {
-      return;
-    }
-  }
-
-  function verifyCode() {
+  async function verifyCode() {
+    if (saving) return;
     const normalized = code.replace(/\s+/g, "").toUpperCase();
     if (normalized !== FINAL_CODE) {
       setCodeError("Код не принят. Соберите буквенные и числовые фрагменты ещё раз.");
       return;
     }
+
+    setSaving(true);
+    setCodeError("");
     const now = new Date();
     const progress = loadQuestProgress();
     const startedAt = progress.startedAt ?? now.getTime();
+    const attemptId = progress.attemptId || crypto.randomUUID();
+    const completedProgress = {
+      ...progress,
+      attemptId,
+      startedAt,
+      finishedAt: now.getTime(),
+      errors,
+      hints,
+      status: "completed" as const,
+    };
     const nextResult = {
       participant: progress.participant || "Участник",
       time: formatDuration(now.getTime() - startedAt),
       finished: now.toLocaleString("ru-RU"),
     };
-    updateQuestProgress({ finishedAt: now.getTime(), status: "completed" });
-    setResult(nextResult);
-    setCode(FINAL_CODE);
-    setCodeError("");
-    submitResult(nextResult);
-  }
 
-  function formUrl(baseUrl: string) {
-    if (!result || !baseUrl) return baseUrl;
-    const url = new URL(baseUrl);
-    url.searchParams.set("usp", "pp_url");
-    const [hours, minutes] = result.time.split(":");
-    url.searchParams.set(`entry.${GOOGLE_FORM.fields.participant}`, result.participant);
-    url.searchParams.set(`entry.${GOOGLE_FORM.fields.code}`, FINAL_CODE);
-    url.searchParams.set(`entry.${GOOGLE_FORM.fields.time}_hour`, hours);
-    url.searchParams.set(`entry.${GOOGLE_FORM.fields.time}_minute`, minutes);
-    url.searchParams.set(`entry.${GOOGLE_FORM.fields.hints}`, String(hints));
-    if (GOOGLE_FORM.fields.errors) url.searchParams.set(`entry.${GOOGLE_FORM.fields.errors}`, String(errors));
-    return url.toString();
+    try {
+      updateQuestProgress({ attemptId });
+      if (RESULT_STORAGE_MODE === "sqlite") {
+        const response = await fetch("/api/results", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ finalCode: normalized, progress: completedProgress }),
+        });
+        if (!response.ok) throw new Error("Result storage rejected the request");
+      }
+
+      updateQuestProgress({ attemptId, startedAt, finishedAt: now.getTime(), errors, hints, status: "completed" });
+      setResult(nextResult);
+      setCode(FINAL_CODE);
+    } catch {
+      setCodeError("Не удалось сохранить результат. Проверьте соединение и нажмите «Проверить» ещё раз.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -156,7 +133,7 @@ export default function FinalTerminal({ errors, hints = 0, locked, onExit }: Fin
 
             <div className="final-code-entry terminal-code-entry">
               <label htmlFor="final-code">root@aytipelag:~$ enter_final_code</label>
-              <div><span>&gt;</span><input id="final-code" value={code} onChange={(event) => { setCode(event.target.value); if (codeError) setCodeError(""); }} placeholder="_ _ _ _ _ _ _" disabled={locked} autoComplete="off" spellCheck={false} /><button type="button" onClick={verifyCode} disabled={locked || !code.trim()}>ПРОВЕРИТЬ</button></div>
+              <div><span>&gt;</span><input id="final-code" value={code} onChange={(event) => { setCode(event.target.value); if (codeError) setCodeError(""); }} placeholder="_ _ _ _ _ _ _" disabled={locked || saving} autoComplete="off" spellCheck={false} /><button type="button" onClick={() => void verifyCode()} disabled={locked || saving || !code.trim()}>{saving ? "СОХРАНЯЕМ..." : "ПРОВЕРИТЬ"}</button></div>
               {codeError && <p role="alert">{codeError}</p>}
             </div>
           </div> : <div className="final-success-screen">
@@ -172,9 +149,8 @@ export default function FinalTerminal({ errors, hints = 0, locked, onExit }: Fin
             <div className="result-card terminal-result-card">
               <div className="result-status"><span>✓</span><div><small>СТАТУС</small><strong>КВЕСТ ПРОЙДЕН</strong></div></div>
               <dl><div><dt>Участник</dt><dd>{result.participant}</dd></div><div><dt>Код</dt><dd>{FINAL_CODE}</dd></div><div><dt>Время</dt><dd>{result.time}</dd></div><div><dt>Ошибки</dt><dd>{errors}</dd></div><div><dt>Подсказки</dt><dd>{hints}</dd></div><div><dt>Завершено</dt><dd>{result.finished}</dd></div></dl>
+              <div className="result-saved-message"><span>✓</span><strong>{RESULT_STORAGE_MODE === "sqlite" ? "Ваши результаты сохранены." : "Результат сохранён на этом устройстве."}</strong></div>
               <p>Система Айтипелага успешно восстановлена! Поздравляем с Днём программиста!</p>
-              <div className="result-warning"><span>!</span><p><strong>ВАЖНО</strong>Для фиксации результата он должен быть отправлен в Google Forms. Откройте форму с помощью кнопки ниже.</p></div>
-              <div className="result-actions">{GOOGLE_FORM.publicUrl && <a href={formUrl(GOOGLE_FORM.publicUrl)} target="_blank" rel="noreferrer">ОТКРЫТЬ GOOGLE FORMS ↗</a>}</div>
             </div>
           </div>}
           <footer className="final-terminal-footer"><span>● encrypted channel</span><b>{result ? "system.online" : "awaiting operator"}</b></footer>

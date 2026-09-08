@@ -141,7 +141,7 @@ export default function Home() {
       setError("Введите имя и фамилию, чтобы мы записали ваш результат.");
       return;
     }
-    updateQuestProgress({ participant, startedAt: Date.now(), currentStage: 1, status: "active" });
+    updateQuestProgress({ attemptId: crypto.randomUUID(), participant, startedAt: Date.now(), currentStage: 1, status: "active" });
     setName(participant);
     setError("");
     setStarted(true);
