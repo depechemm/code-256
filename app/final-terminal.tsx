@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { FINAL_CODE, GOOGLE_FORM } from "./quest-settings";
 import QuestStepShell from "./quest-step-shell";
+import RoboDuck from "./robo-duck";
 import { loadQuestProgress, updateQuestProgress } from "./quest-storage";
 
 type FinalTerminalProps = {
@@ -11,6 +12,14 @@ type FinalTerminalProps = {
   locked: boolean;
   onExit: () => void;
 };
+
+const FRAGMENT_SEQUENCE = [
+  { node: "MEM", fragment: "CO", label: "Оперативная память" },
+  { node: "BUGS", fragment: "2", label: "Распределение багов" },
+  { node: "CIPHER", fragment: "DE", label: "Зашифрованное сообщение" },
+  { node: "ALGO", fragment: "5", label: "Алгоритм" },
+  { node: "NET", fragment: "6", label: "Соединение" },
+] as const;
 
 function formatDuration(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -24,6 +33,16 @@ export default function FinalTerminal({ errors, hints = 0, locked, onExit }: Fin
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [result, setResult] = useState<{ participant: string; time: string; finished: string } | null>(null);
+  const [collectedFragments, setCollectedFragments] = useState<string[]>([]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const progress = loadQuestProgress();
+      const stored = new Set(progress.fragments);
+      setCollectedFragments(FRAGMENT_SEQUENCE.filter(({ fragment }) => !locked || stored.has(fragment)).map(({ fragment }) => fragment));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [locked]);
 
   function submitResult(nextResult: { participant: string; time: string }) {
     try {
@@ -101,27 +120,65 @@ export default function FinalTerminal({ errors, hints = 0, locked, onExit }: Fin
 
   return (
     <QuestStepShell code="SERVER" step="FINAL" title="Финальный терминал" errors={errors} hints={hints} onExit={onExit}>
-      <section className={`final-page ${result ? "is-finished" : ""}`}>
-        <div className="final-panel">
-          <span>ФИНАЛЬНЫЙ УЗЕЛ / ACCESS CONTROL</span>
-          <h1>{result ? "Система восстановлена" : locked ? "Доступ закрыт" : "Собери код"}</h1>
-          {!result && <p>{locked ? "Терминал разблокируется после последовательного завершения всех шести заданий." : "Сначала собери английское слово, обозначающее то, что создаёт программист. Затем добавь номер дня года, в который отмечается День программиста."}</p>}
+      <section className={`final-page final-terminal-page ${result ? "is-finished" : ""}`}>
+        <div className="final-terminal-window">
+          <header className="final-terminal-bar">
+            <span>root@aytipelag: /system/recovery</span>
+            <b>{result ? "RESTORED" : locked ? "LOCKED" : "SECURE SESSION"}</b>
+          </header>
 
-          {!result && <div className="final-code-entry">
-            <label htmlFor="final-code">ФИНАЛЬНЫЙ КОД</label>
-            <div><span>&gt;</span><input id="final-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="_ _ _ _ _ _ _" disabled={locked} /><button type="button" onClick={verifyCode} disabled={locked}>ПРОВЕРИТЬ</button></div>
-            {codeError && <p>! {codeError}</p>}
-          </div>}
+          {!result ? <div className="final-terminal-body">
+            <div className="terminal-boot-log" aria-live="polite">
+              <p style={{ "--boot-delay": "120ms" } as CSSProperties}><span>&gt;</span> initializing recovery console...</p>
+              <p style={{ "--boot-delay": "520ms" } as CSSProperties}><span>&gt;</span> scanning recovered nodes... <b>DONE</b></p>
+              <p style={{ "--boot-delay": "920ms" } as CSSProperties}><span>&gt;</span> fragments received: <b>{collectedFragments.length}/5</b></p>
+              <p style={{ "--boot-delay": "1320ms" } as CSSProperties}><span>&gt;</span> access status: <b>{locked ? "DENIED" : "READY"}</b><i className="terminal-cursor" /></p>
+            </div>
 
-          {result && <div className="result-card">
-            <div className="result-status"><span>✓</span><div><small>СТАТУС</small><strong>КВЕСТ ПРОЙДЕН</strong></div></div>
-            <dl><div><dt>Участник</dt><dd>{result.participant}</dd></div><div><dt>Код</dt><dd>{FINAL_CODE}</dd></div><div><dt>Время</dt><dd>{result.time}</dd></div><div><dt>Ошибки</dt><dd>{errors}</dd></div><div><dt>Подсказки</dt><dd>{hints}</dd></div><div><dt>Завершено</dt><dd>{result.finished}</dd></div></dl>
-            <p>Код 256 принят. Система Айтипелага успешно восстановлена! Поздравляем с Днём программиста!</p>
-            <div className="result-warning"><span>!</span><p><strong>ВАЖНО</strong>Для фиксации результата он должен быть отправлен в Google Forms. Дождитесь подтверждения отправки ниже.</p></div>
-            <div className="result-actions">{GOOGLE_FORM.publicUrl && <a href={formUrl(GOOGLE_FORM.publicUrl)} target="_blank" rel="noreferrer">ОТКРЫТЬ GOOGLE FORMS ↗</a>}</div>
+            <div className="terminal-fragment-section">
+              <div className="terminal-section-head"><span>$ ls -la /recovered/fragments</span><b>ORDER: ISSUED</b></div>
+              <ol className="terminal-fragment-list">
+                {FRAGMENT_SEQUENCE.map((item, index) => {
+                  const received = collectedFragments.includes(item.fragment);
+                  return <li className={received ? "is-received" : "is-locked"} key={item.node} style={{ "--fragment-delay": `${1.45 + index * .12}s` } as CSSProperties}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <div><small>[{item.node}]</small><strong>{item.label}</strong></div>
+                    <code>{received ? item.fragment : "??"}</code>
+                    <b>{received ? "RECEIVED" : "LOCKED"}</b>
+                  </li>;
+                })}
+              </ol>
+            </div>
+
+            <aside className="terminal-final-hint">
+              <p>{locked ? "Терминал разблокируется после последовательного завершения всех шести заданий." : "Соберите из буквенных фрагментов английское слово, обозначающее то, что создаёт программист. Затем объедините числовые фрагменты и добавьте получившееся число после слова."}</p>
+            </aside>
+
+            <div className="final-code-entry terminal-code-entry">
+              <label htmlFor="final-code">root@aytipelag:~$ enter_final_code</label>
+              <div><span>&gt;</span><input id="final-code" value={code} onChange={(event) => { setCode(event.target.value); if (codeError) setCodeError(""); }} placeholder="_ _ _ _ _ _ _" disabled={locked} autoComplete="off" spellCheck={false} /><button type="button" onClick={verifyCode} disabled={locked || !code.trim()}>ПРОВЕРИТЬ</button></div>
+              {codeError && <p role="alert">{codeError}</p>}
+            </div>
+          </div> : <div className="final-success-screen">
+            <div className="success-terminal-log" aria-hidden="true">
+              <p><span>&gt;</span> validating final code... <b>OK</b></p>
+              <p><span>&gt;</span> restoring system services... <b>100%</b></p>
+              <p><span>&gt;</span> reboot complete <i className="terminal-cursor" /></p>
+            </div>
+            <div className="final-success-hero">
+              <div><span>SYSTEM.STATUS / ONLINE</span><h1>Система<br /><em>восстановлена</em></h1><p>Все модули работают штатно. Код 256 принят центральным сервером.</p></div>
+              <div className="final-dancing-duck" aria-label="Робо-утка празднует восстановление системы"><span className="duck-music-note">♪</span><RoboDuck /><i /><i /></div>
+            </div>
+            <div className="result-card terminal-result-card">
+              <div className="result-status"><span>✓</span><div><small>СТАТУС</small><strong>КВЕСТ ПРОЙДЕН</strong></div></div>
+              <dl><div><dt>Участник</dt><dd>{result.participant}</dd></div><div><dt>Код</dt><dd>{FINAL_CODE}</dd></div><div><dt>Время</dt><dd>{result.time}</dd></div><div><dt>Ошибки</dt><dd>{errors}</dd></div><div><dt>Подсказки</dt><dd>{hints}</dd></div><div><dt>Завершено</dt><dd>{result.finished}</dd></div></dl>
+              <p>Система Айтипелага успешно восстановлена! Поздравляем с Днём программиста!</p>
+              <div className="result-warning"><span>!</span><p><strong>ВАЖНО</strong>Для фиксации результата он должен быть отправлен в Google Forms. Откройте форму с помощью кнопки ниже.</p></div>
+              <div className="result-actions">{GOOGLE_FORM.publicUrl && <a href={formUrl(GOOGLE_FORM.publicUrl)} target="_blank" rel="noreferrer">ОТКРЫТЬ GOOGLE FORMS ↗</a>}</div>
+            </div>
           </div>}
+          <footer className="final-terminal-footer"><span>● encrypted channel</span><b>{result ? "system.online" : "awaiting operator"}</b></footer>
         </div>
-
       </section>
     </QuestStepShell>
   );

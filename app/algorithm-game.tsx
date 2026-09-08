@@ -79,22 +79,22 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
     setHintOpen(true);
   }
 
-  return <QuestStepShell code="ALGO" step={4} title="Выполни алгоритм" errors={totalErrors} hints={totalHints} onExit={onExit}>
+  return <QuestStepShell code="ALGO" step={4} title="Выполните алгоритм" errors={totalErrors} hints={totalHints} onExit={onExit}>
     <section className={`algorithm-layout algorithm-${status}`}>
       <div className="algorithm-copy">
         <span className="game-kicker">ЗАДАНИЕ 04 / EXECUTION TRACE</span>
-        <h1>Выполни<br /><em>алгоритм</em></h1>
-        <p>Выполни цикл, проследи изменение переменной <b>x</b> и введи её итоговое значение. Анимацию трассировки можно запустить для наглядности, но это необязательно.</p>
+        <h1>Выполните<br /><em>алгоритм</em></h1>
+        <p>Выполните цикл, проследите изменение переменной <b>x</b> и введите её итоговое значение. Анимацию трассировки можно запустить для наглядности, но это необязательно.</p>
         <div className="iteration-track" aria-label={`Текущая итерация: ${iteration} из 4`}>
           {branches.map((_, index) => <span key={index} className={iteration > index ? iteration === index + 1 && status === "running" ? "current" : "done" : ""}>{iteration > index && !(iteration === index + 1 && status === "running") ? "✓" : `0${index + 1}`}</span>)}
         </div>
-        <div className="algorithm-status" aria-live="polite"><strong>{status === "idle" ? "4 ИТЕРАЦИИ · ГОТОВО К РЕШЕНИЮ" : status === "running" ? `ВЫПОЛНЯЕТСЯ ИТЕРАЦИЯ ${iteration}/4` : status === "error" ? "ЗНАЧЕНИЕ НЕВЕРНО" : status === "complete" ? "АЛГОРИТМ ВЫПОЛНЕН" : "ВЫЧИСЛЕНИЕ ЗАВЕРШЕНО"}</strong><span>{status === "running" ? "Следи за активной строкой псевдокода" : status === "error" ? "Проверь записанные значения после каждого повтора" : status === "ready" ? "Введи получившееся значение x" : "Можно считать самостоятельно или посмотреть трассировку"}</span></div>
+        <div className="algorithm-status" aria-live="polite"><strong>{status === "idle" ? "4 ИТЕРАЦИИ · ГОТОВО К РЕШЕНИЮ" : status === "running" ? `ВЫПОЛНЯЕТСЯ ИТЕРАЦИЯ ${iteration}/4` : status === "error" ? "ЗНАЧЕНИЕ НЕВЕРНО" : status === "complete" ? "АЛГОРИТМ ВЫПОЛНЕН" : "ВЫЧИСЛЕНИЕ ЗАВЕРШЕНО"}</strong><span>{status === "running" ? "Следите за активной строкой псевдокода" : status === "error" ? "Проверьте записанные значения после каждого повтора" : status === "ready" ? "Введите получившееся значение x" : "Можно считать самостоятельно или посмотреть трассировку"}</span></div>
         <div className="algorithm-controls">
           {status === "idle" && <button className="game-start" type="button" onClick={() => void runAlgorithm()}>ПОКАЗАТЬ ТРАССИРОВКУ <span>↗</span></button>}
           {status !== "idle" && status !== "running" && <button className="algorithm-replay" type="button" onClick={() => void runAlgorithm()} disabled={status === "complete"}>ПОВТОРИТЬ ТРАССИРОВКУ</button>}
           <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
         </div>
-        <div className={`algorithm-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Кря! Заведи четыре строчки в черновике — по одной на каждый круг. Иначе икс убежит, он такой.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
+        <div className={`algorithm-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Кря! Заведите четыре строчки в черновике — по одной на каждый круг. Иначе икс убежит, он такой.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
 
       <div className="algorithm-terminal">
@@ -110,7 +110,7 @@ export default function AlgorithmGame({ totalErrors, totalHints, onError, onHint
           <div className={activeLine === 8 ? "active" : ""}><i>08</i><code><b>RETURN</b> x</code></div>
         </div>
         <div className="execution-register"><span>ITERATION</span><strong>{String(iteration).padStart(2, "0")} / 04</strong><span>REGISTER X</span><strong>{iteration === 0 ? "06" : status === "complete" ? "23" : "??"}</strong></div>
-        <form className="algorithm-answer" onSubmit={checkAnswer}><label htmlFor="algorithm-result">ИТОГОВОЕ ЗНАЧЕНИЕ X ПОСЛЕ 4 ИТЕРАЦИЙ</label><div><span>x =</span><input id="algorithm-result" inputMode="numeric" autoComplete="off" value={answer} onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="?" disabled={status === "running" || status === "complete"} /><button type="submit" disabled={!answer || status === "running" || status === "complete"}>ПРОВЕРИТЬ <b>↗</b></button></div>{status === "error" && <p>РЕЗУЛЬТАТ НЕ СОВПАЛ — ПРОЙДИ ЧЕТЫРЕ ИТЕРАЦИИ ЕЩЁ РАЗ</p>}</form>
+        <form className="algorithm-answer" onSubmit={checkAnswer}><label htmlFor="algorithm-result">ИТОГОВОЕ ЗНАЧЕНИЕ X ПОСЛЕ 4 ИТЕРАЦИЙ</label><div><span>x =</span><input id="algorithm-result" inputMode="numeric" autoComplete="off" value={answer} onChange={(event) => setAnswer(event.target.value.replace(/[^0-9-]/g, ""))} placeholder="?" disabled={status === "running" || status === "complete"} /><button type="submit" disabled={!answer || status === "running" || status === "complete"}>ПРОВЕРИТЬ <b>↗</b></button></div>{status === "error" && <p>РЕЗУЛЬТАТ НЕ СОВПАЛ — ПРОЙДИТЕ ЧЕТЫРЕ ИТЕРАЦИИ ЕЩЁ РАЗ</p>}</form>
       </div>
     </section>
 

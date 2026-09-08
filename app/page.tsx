@@ -188,10 +188,10 @@ export default function Home() {
       <section className="hero" id="top">
         <div className="hero-copy">
           <div className="eyebrow"><span>01</span> Индивидуальный online-квест</div>
-          <h1>Восстанови<span className="title-code" data-text="КОД 256">КОД 256</span></h1>
-          <p className="lead">Система Айтипелага дала сбой. Шесть модулей отключены, а финальный код разбит на фрагменты. У тебя есть час, чтобы вернуть всё в строй.</p>
+          <h1>Восстановите<span className="title-code" data-text="КОД 256">КОД 256</span></h1>
+          <p className="lead">Система Айтипелага дала сбой. Шесть модулей отключены, а финальный код разбит на фрагменты. На восстановление системы отведён один час.</p>
           <div className="metrics" aria-label="Параметры квеста">
-            <div><strong>06</strong><span>заданий</span></div><div><strong>60</strong><span>минут</span></div><div><strong>01</strong><span>финальный код</span></div>
+            <div><strong>06</strong><span>заданий</span></div><div><strong>60</strong><span>минут</span></div>
           </div>
           <form className="start-form" onSubmit={startQuest} noValidate>
             <label htmlFor="participant">Как к вам обращаться?</label>

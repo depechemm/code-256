@@ -130,23 +130,23 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
       <section className="memory-layout">
         <div className="memory-copy">
           <span className="game-kicker">ЗАДАНИЕ 01 / ПРОТОКОЛ ПАМЯТИ</span>
-          <h1>Повтори<br /><em>сигнал</em></h1>
-          <p>Запомни последовательность импульсов и повтори её, нажимая на ячейки в том же порядке.</p>
+          <h1>Повторите<br /><em>сигнал</em></h1>
+          <p>Запомните последовательность импульсов и повторите её, нажимая на ячейки в том же порядке.</p>
           <div className="round-track">
             {MEMORY_ROUNDS.map((length, index) => <span key={length} className={index < round ? "done" : index === round ? "current" : ""}>{index < round ? "✓" : `0${index + 1}`}</span>)}
           </div>
           <div className={`game-message message-${status}`}>
             {status === "briefing" && <><strong>СИСТЕМА ГОТОВА</strong><span>Раунд {round + 1} · последовательность из {MEMORY_ROUNDS[round]} сигналов</span></>}
-            {status === "showing" && <><strong>СМОТРИ ВНИМАТЕЛЬНО</strong><span>Ввод временно заблокирован</span></>}
-            {status === "input" && <><strong>ТВОЙ ХОД</strong><span>Введено {input.length} из {sequence.length}</span></>}
-            {status === "error" && <><strong>СБОЙ ПОСЛЕДОВАТЕЛЬНОСТИ</strong><span>Пока не сходится. Проверь логику и попробуй ещё раз</span></>}
+            {status === "showing" && <><strong>СМОТРИТЕ ВНИМАТЕЛЬНО</strong><span>Ввод временно заблокирован</span></>}
+            {status === "input" && <><strong>ВАШ ХОД</strong><span>Введено {input.length} из {sequence.length}</span></>}
+            {status === "error" && <><strong>СБОЙ ПОСЛЕДОВАТЕЛЬНОСТИ</strong><span>Пока не сходится. Проверьте логику и попробуйте ещё раз</span></>}
             {status === "roundDone" && <><strong>РАУНД ПРОЙДЕН</strong><span>Загружаем следующий паттерн...</span></>}
             {status === "complete" && <><strong>МОДУЛЬ ВОССТАНОВЛЕН</strong><span>Получен фрагмент кода: CO</span></>}
           </div>
           {status === "briefing" && <button className="game-start" onClick={startRound} type="button">ЗАПУСТИТЬ СИГНАЛ <span>↗</span></button>}
           {status === "input" && <button className="hint-button" onClick={useHint} type="button" disabled={hintUsedRound}><span>?</span>{hintUsedRound ? "ПОДСКАЗКА ИСПОЛЬЗОВАНА" : "ПОЗВАТЬ РОБО-УТКУ"}<b>{totalHints}</b></button>}
           <div className={`duck-helper ${duckTalking ? "is-talking" : ""}`} aria-live="polite">
-            <div className="duck-speech"><span>Кря! Вот следующий импульс — запоминай.</span><button type="button" onClick={closeHint}>СПАСИБО!</button></div><RoboDuck />
+            <div className="duck-speech"><span>Кря! Вот следующий импульс — постарайтесь запомнить.</span><button type="button" onClick={closeHint}>СПАСИБО!</button></div><RoboDuck />
           </div>
         </div>
 

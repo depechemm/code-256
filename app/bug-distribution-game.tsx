@@ -13,6 +13,29 @@ const developers = [
 
 const times = ["10:00", "11:00", "12:00", "13:00"];
 
+type SelectOption = { value: string; label: string; color?: string };
+
+function QuestSelect({ value, placeholder, options, onChange, kind }: { value: string; placeholder: string; options: SelectOption[]; onChange: (value: string) => void; kind: "person" | "time" }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  return <div className={`quest-select ${open ? "is-open" : ""}`} onBlur={(event) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+  }}>
+    <button className="quest-select-trigger" type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+      <i className={`quest-select-symbol symbol-${kind}`} style={selected?.color ? { "--select-color": selected.color } as CSSProperties : undefined}>{kind === "person" ? "●" : "◷"}</i>
+      <span>{selected?.label ?? placeholder}</span>
+      <b aria-hidden="true">⌄</b>
+    </button>
+    {open && <div className="quest-select-menu" role="listbox">
+      {options.map((option, index) => <button type="button" role="option" aria-selected={option.value === value} className={option.value === value ? "is-selected" : ""} key={option.value} onClick={() => { onChange(option.value); setOpen(false); }}>
+        <i style={option.color ? { "--select-color": option.color } as CSSProperties : undefined}>{kind === "person" ? "●" : String(index + 10).padStart(2, "0")}</i>
+        <span>{option.label}</span><b>{option.value === value ? "SELECTED" : "+"}</b>
+      </button>)}
+    </div>}
+  </div>;
+}
+
 type BugDistributionGameProps = {
   totalErrors: number;
   totalHints: number;
@@ -72,7 +95,7 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
       <div className="bugs-brief">
         <span className="game-kicker">ЗАДАНИЕ 02 / ЛОГИЧЕСКИЙ ДЕБАГ</span>
         <h1>Следствие ведет<br /><em>тимлид</em></h1>
-        <p>После обновления система дала сбой. Расследование показало, что причиной стало изменение в мобильном приложении. Четыре разработчика в тот день работали над разными частями системы и закончили работу в разное время. Восстанови журнал событий и выясни, кто внёс критический баг и во сколько.</p>
+        <p>После обновления система дала сбой. Расследование показало, что причиной стало изменение в мобильном приложении. Четыре разработчика в тот день работали над разными частями системы и закончили работу в разное время. Восстановите журнал событий и выясните, кто внёс критический баг и во сколько.</p>
         <ol className="clue-stack">
           <li><b>01</b><span>Фронтенд исправили первым, базу данных — последней.</span></li>
           <li><b>02</b><span>Глеб закончил ровно на час позже Бориса.</span></li>
@@ -80,7 +103,7 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
           <li><b>04</b><span>Вика не работала ни с фронтендом, ни с мобильным приложением.</span></li>
         </ol>
         <button className="bugs-hint" type="button" onClick={showHint}><span>?</span>{hintUsed ? "ПОКАЗАТЬ ПОДСКАЗКУ" : "ПОЗВАТЬ РОБО-УТКУ"}</button>
-        <div className={`bugs-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Сначала закрепи крайние значения: фронтенд — 10:00, база данных — 13:00. Затем исключай занятые роли.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
+        <div className={`bugs-duck-helper ${hintOpen ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech"><span>Сначала закрепите крайние значения: фронтенд — 10:00, база данных — 13:00. Затем исключайте занятые роли.</span><button type="button" onClick={() => setHintOpen(false)}>СПАСИБО!</button></div><RoboDuckFace /></div>
       </div>
 
       <div className="bugs-console">
@@ -93,10 +116,10 @@ export default function BugDistributionGame({ totalErrors, totalHints, onError, 
           </button>)}
         </div>
         <form className="bugs-answer" onSubmit={checkAnswer}>
-          <label><span>КТО ИСПРАВИЛ МОБИЛЬНЫЙ БАГ?</span><select value={person} onChange={(event) => setPerson(event.target.value)}><option value="">Выберите имя</option>{developers.map((developer) => <option key={developer.id}>{developer.id}</option>)}</select></label>
-          <label><span>ВРЕМЯ ЗАВЕРШЕНИЯ</span><select value={time} onChange={(event) => setTime(event.target.value)}><option value="">Выберите время</option>{times.map((value) => <option key={value}>{value}</option>)}</select></label>
+          <div className="bugs-field"><span>КТО ИСПРАВИЛ МОБИЛЬНЫЙ БАГ?</span><QuestSelect kind="person" value={person} placeholder="Выберите имя" onChange={setPerson} options={developers.map((developer) => ({ value: developer.id, label: developer.id, color: developer.color }))} /></div>
+          <div className="bugs-field"><span>ВРЕМЯ ЗАВЕРШЕНИЯ</span><QuestSelect kind="time" value={time} placeholder="Выберите время" onChange={setTime} options={times.map((value) => ({ value, label: value }))} /></div>
           <button type="submit" disabled={!person || !time || status === "error"}>ПРОВЕРИТЬ ГИПОТЕЗУ <span>↗</span></button>
-          <p aria-live="polite">{status === "error" ? "СВЯЗИ НЕ СХОДЯТСЯ — ПРОВЕРЬ УСЛОВИЯ ЕЩЁ РАЗ" : `> ${person || "developer"} / ${time || "time"} / awaiting validation_`}</p>
+          <p aria-live="polite">{status === "error" ? "СВЯЗИ НЕ СХОДЯТСЯ — ПРОВЕРЬТЕ УСЛОВИЯ ЕЩЁ РАЗ" : `> ${person || "developer"} / ${time || "time"} / awaiting validation_`}</p>
         </form>
       </div>
     </section>
