@@ -246,6 +246,7 @@ export default function Home() {
           <li><span>01</span><p>Проходите квест <strong>индивидуально</strong> и не публикуйте ответы в общем чате.</p></li>
           <li><span>02</span><p>Не используйте <strong>поиск, ИИ</strong> и помощь коллег. Доверьтесь своей логике.</p></li>
           <li><span>03</span><p>Основное время — <strong>60 минут</strong>. Завершить прохождение можно до 75 минут.</p></li>
+          <li><span>04</span><p><strong>Ошибки, подсказки и время выполнения</strong> будут учитываться в итоговом рейтинге.</p></li>
         </ol>
       </section>
       {completedTaskNotice !== null && (() => {

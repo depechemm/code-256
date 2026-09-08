@@ -115,10 +115,9 @@ export default function RobotGame({ totalErrors, totalHints, onError, onHint, on
     resetRobot(); hideDuckImmediately(); setStatus("running"); setMessage(countError ? "Утка выполняет программу буквально и проверяет каждый блок." : "Проверка: утка выполняет уже собранную часть программы. Ошибки не учитываются.");
     setActiveIndex(0); if (!await pause(160, id)) return;
     if (commands[0] !== "while") { await stop(0, "Программа не может начаться: первым должен стоять цикл «Повторять до сервера»."); return; }
-    let position = START; let facing: Direction = "N"; let actionsDone = 0; let stalledCycles = 0;
+    let position = START; let facing: Direction = "N"; let actionsDone = 0;
     while (keyOf(position) !== keyOf(SERVER) && actionsDone < 30) {
-      if (stalledCycles >= 10) { await stop(0, "Цикл повторился 10 раз, но утка не сдвинулась к серверу."); return; }
-      const positionBeforeCycle = keyOf(position);
+      const actionsBeforeCycle = actionsDone;
       setActiveIndex(0); if (!await pause(140, id)) return;
       let index = 1; let conditionOpen = false; let branchTaken = false; let loopClosed = false;
       while (index < commands.length) {
@@ -155,7 +154,7 @@ export default function RobotGame({ totalErrors, totalHints, onError, onHint, on
       }
       if (conditionOpen) { await stop(Math.max(0, commands.length - 1), "Цепочка условий не закрыта. Добавьте блок «ЗАКРЫТЬ БЛОК»."); return; }
       if (!loopClosed) { await stop(Math.max(0, commands.length - 1), "Цикл не закрыт. Добавьте блок «ЗАКРЫТЬ БЛОК»."); return; }
-      stalledCycles = keyOf(position) === positionBeforeCycle ? stalledCycles + 1 : 0;
+      if (actionsDone === actionsBeforeCycle) { await stop(0, "За повтор цикла утка не выполнила ни одного действия: ни шага, ни поворота. Измените условия программы."); return; }
     }
     if (keyOf(position) !== keyOf(SERVER)) { await stop(0, "Программа зациклилась, и утка не дошла до сервера. Проверьте команды движения и поворота."); return; }
     const validation = validateProgram(commands);
@@ -181,7 +180,7 @@ export default function RobotGame({ totalErrors, totalHints, onError, onHint, on
       <div ref={programRef} className={`visual-code ${!commands.length ? "is-empty" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={dropOnProgram}><div className="visual-code-head"><span>МОЯ ПРОГРАММА</span><b>{commands.length} / 9 БЛОКОВ</b></div>
         {!commands.length ? <div className="visual-code-empty"><strong>ПРОГРАММА ПУСТА</strong><span>Начните с цикла, затем добавляйте действия напрямую или объединяйте их с условиями</span></div> : <ol>{commands.map((command, index) => { const previous = commands[index - 1]; const branchAction = isAction(command) && (previous === "if_front" || isSideCondition(previous) || previous === "else"); const remainingEnds = command === "end" ? commands.slice(index).filter((item) => item === "end").length : 0; const indent = index === 0 ? 0 : branchAction ? 2 : command === "end" ? remainingEnds > 1 ? 1 : 0 : 1; return <li key={`${command}-${index}`} draggable={!locked} onDragStart={() => setDraggedIndex(index)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); moveDragged(index); }} className={`${commandInfo[command].group === "logic" ? "is-logic" : "is-action"} indent-${indent} ${activeIndex === index ? failedIndex === index ? "is-failed" : "is-active" : ""}`}><span>{String(index + 1).padStart(2, "0")}</span><b>{commandInfo[command].icon}</b><strong>{commandInfo[command].short}</strong><div><button onClick={() => moveCommand(index, -1)} disabled={locked || index === 0} aria-label="Переместить вверх">↑</button><button onClick={() => moveCommand(index, 1)} disabled={locked || index === commands.length - 1} aria-label="Переместить вниз">↓</button><button onClick={() => removeCommand(index)} disabled={locked} aria-label="Удалить">×</button></div></li>; })}</ol>}</div>
       <div className="program-actions visual-program-actions">{status === "failed" ? <button className="edit-program" onClick={() => { setStatus("idle"); resetRobot(); setMessage("Исправьте выделенную команду и попробуйте ещё раз."); }}>ИЗМЕНИТЬ ПРОГРАММУ</button> : <button className="run-program" onClick={() => void runProgram()} disabled={locked || !commands.length}>ЗАПУСТИТЬ <span>↗</span></button>}<button className="preview-program" onClick={() => void previewProgram()} disabled={locked || !commands.length}>ПРОВЕРИТЬ</button><button className="reset-program" onClick={resetProgram} disabled={locked || !commands.length}>ОЧИСТИТЬ</button><button className="robot-hint-button" onClick={showHint} disabled={locked || duckMessage === "hint"}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button></div>
-      <p className="cumulative-hint-note robot-cumulative-hint-note">Каждый вызов утки добавляет одну подсказку. Количество подсказок и ошибок не ограничено.</p>
+      <p className="cumulative-hint-note robot-cumulative-hint-note">Каждый вызов утки добавляет одну подсказку.</p>
       <div className={`program-status ${status === "failed" ? "is-error" : ""}`}><span>{message}</span><b>НЕУДАЧНЫХ ЗАПУСКОВ: {failures}</b></div>
       <div className={`robot-hint-helper ${duckMessage !== null && !duckClosing ? "is-talking" : ""}`} aria-live="polite"><div className="duck-speech">{duckMessage === "intro" ? <><span>Кря! Перед началом загляните в инструкцию. Там на простых примерах показано, как соединять блоки программы. Её открытие не считается подсказкой.</span><button type="button" onClick={openInstructions}>ОТКРЫТЬ ИНСТРУКЦИЮ</button></> : duckMessage === "hint" ? <><span>{nextHint}</span><button type="button" onClick={closeDuckMessage} disabled={duckClosing}>СПАСИБО!</button></> : null}</div><RoboDuckFace /></div>
     </div></section>

@@ -140,7 +140,7 @@ export default function MemoryGame({ initialRound, totalErrors, totalHints, onEr
             {status === "complete" && <><strong>МОДУЛЬ ВОССТАНОВЛЕН</strong><span>Получен фрагмент кода: CO</span></>}
           </div>
           {status === "briefing" && <button className="game-start" onClick={startRound} type="button">ЗАПУСТИТЬ СИГНАЛ <span>↗</span></button>}
-          {status === "input" && <><button className="hint-button" onClick={useHint} type="button" disabled={duckTalking}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button><p className="cumulative-hint-note">Каждый вызов утки добавляет одну подсказку. Количество подсказок и ошибок не ограничено.</p></>}
+          {status === "input" && <><button className="hint-button" onClick={useHint} type="button" disabled={duckTalking}><span>?</span>ПОЗВАТЬ РОБО-УТКУ</button><p className="cumulative-hint-note">Каждый вызов утки добавляет одну подсказку.</p></>}
           <div className={`duck-helper ${duckTalking ? "is-talking" : ""}`} aria-live="polite">
             <div className="duck-speech"><span>Кря! Вот следующий импульс — постарайтесь запомнить.</span><button type="button" onClick={closeHint}>СПАСИБО!</button></div><RoboDuck />
           </div>
